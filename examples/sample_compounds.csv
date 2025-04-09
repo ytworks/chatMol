@@ -1,0 +1,11 @@
+ID,Name,SMILES
+1,Aspirin,CC(=O)OC1=CC=CC=C1C(=O)O
+2,Paracetamol,CC(=O)NC1=CC=C(C=C1)O
+3,Ibuprofen,CC(C)CC1=CC=C(C=C1)C(C)C(=O)O
+4,Caffeine,CN1C=NC2=C1C(=O)N(C(=O)N2C)C
+5,Fluconazole,C1=CC(=C(C=C1F)F)C(CN2C=NC=N2)(CN3C=NC=N3)O
+6,Benzene,C1=CC=CC=C1
+7,Ethanol,CCO
+8,Glucose,C([C@@H]1[C@H]([C@@H]([C@H](C(O1)O)O)O)O)O
+9,Testosterone,CC12CCC3C(C1CCC2O)CCC4=CC(=O)CCC34C
+10,Cholesterol,CC(C)CCCC(C)C1CCC2C1(CCC3C2CC=C4C3(CCC(C4)O)C)C

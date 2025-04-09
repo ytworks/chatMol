@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "molecular-weight-mcp"
+version = "0.1.0"
+description = "分子構造のSMILESから分子量を計算するMCPサーバー"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Yuzo Takagi", email = "example@example.com"},
+]
+dependencies = [
+    "rdkit==2024.9.6",
+    "pandas==2.2.3",
+    "mcp>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "isort",
+]
