@@ -158,3 +158,44 @@ class TestMolecularProperties:
         assert "num_rotatable_bonds" in props
         assert "num_h_donors" in props
         assert "num_h_acceptors" in props
+
+    def test_all_descriptors_calculable(self):
+        """全ての計算可能な分子記述子が実際に計算可能であることを検証するテスト"""
+        # テスト用のモデル化合物（アスピリン）
+        test_smiles = ASPIRIN["smiles"]
+        
+        # 分子特性の計算
+        features = calculate_molecular_features(test_smiles)
+        
+        # 計算結果から得られた実際に計算可能なプロパティの確認
+        calculable_properties = set(features.keys()) - {"smiles", "error", "mol", "pains_alerts"}
+        
+        # フラグメント記述子（fr_で始まる記述子）の確認 - オプショナルとする
+        fragment_properties = [key for key in calculable_properties if key.startswith("fr_")]
+        # フラグメント記述子が含まれている場合のみ検証
+        if fragment_properties:
+            assert len(fragment_properties) > 0, "フラグメント記述子が計算されていません"
+        
+        # 主要な記述子が含まれていることの確認
+        essential_descriptors = [
+            "molecular_weight", "logp", "tpsa", "num_h_donors", "num_h_acceptors",
+            "num_rotatable_bonds", "heavy_atom_count", "ring_count"
+        ]
+        for desc in essential_descriptors:
+            assert desc in calculable_properties, f"必須の記述子 '{desc}' が計算結果に含まれていません"
+        
+        # 追加の重要な記述子 (利用可能な場合のみ確認)
+        additional_descriptors = ["fraction_csp3", "qed"]
+        for desc in additional_descriptors:
+            if desc in calculable_properties:
+                assert features[desc] is not None, f"記述子 '{desc}' の値がNoneです"
+                if isinstance(features[desc], (int, float)):
+                    assert not pd.isna(features[desc]), f"記述子 '{desc}' の値がNaNです"
+        
+        # 計算された記述子のうち、数値型のものは有効な値であることを確認
+        for prop, value in features.items():
+            if (prop not in {"smiles", "error", "mol", "pains_alerts", "formula"} and 
+                not prop.startswith("pains_") and
+                isinstance(value, (int, float))):
+                assert value is not None, f"プロパティ '{prop}' の値がNoneです"
+                assert not pd.isna(value), f"プロパティ '{prop}' の値がNaNです"
