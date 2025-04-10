@@ -5,7 +5,7 @@ Tests the input/output functionality for molecular data.
 import pytest
 import pandas as pd
 from chatmol.io import add_properties_to_dataframe
-from chatmol.properties import calculate_molecular_features
+from chatmol.properties import calculate_molecular_features, get_available_properties
 
 # テストデータ
 TEST_MOLECULES = [
