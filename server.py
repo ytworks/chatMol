@@ -26,8 +26,9 @@ try:
     from chatmol.properties import (
         calculate_molecular_weight, calculate_properties, 
         calculate_all_properties, calculate_selected_properties,
-        get_available_properties, check_lipinski_rule,
-        check_veber_rules, check_ghose_filter
+        get_available_properties, get_properties_table,
+        get_property_descriptions, get_property_categories,
+        check_lipinski_rule, check_veber_rules, check_ghose_filter
     )
     from chatmol.io import process_csv_data
     
@@ -146,6 +147,57 @@ def get_property_list() -> Dict[str, Any]:
         }
     except Exception as e:
         logger.exception("Error occurred while retrieving property list")
+        return {"error": f"An error occurred: {str(e)}"}
+
+
+@mcp.tool()
+def get_properties_info(format: str = "markdown", language: str = "ja", include_categories: bool = False) -> Dict[str, Any]:
+    """
+    Get formatted information about all available molecular properties
+    
+    Args:
+        format: Output format ('markdown', 'csv', 'json', 'text')
+        language: Language for property names ('ja' for Japanese, 'en' for English)
+        include_categories: Whether to include property categories in the result
+        
+    Returns:
+        Dict: Dictionary containing formatted property information
+    """
+    try:
+        # 物性値の説明テーブルを取得
+        properties_table = get_properties_table(format, language)
+        
+        result = {
+            "properties_table": properties_table,
+            "format": format,
+            "language": language
+        }
+        
+        # カテゴリ情報も要求された場合
+        if include_categories:
+            categories = get_property_categories()
+            result["categories"] = categories
+            
+            # カテゴリ毎の物性値名を日本語/英語で提供
+            if format == "json":
+                property_info = get_property_descriptions()
+                categorized_properties = {}
+                for category, props in categories.items():
+                    categorized_properties[category] = {
+                        "properties": props,
+                        "names": {
+                            prop: {
+                                "ja": property_info[prop]["ja"], 
+                                "en": property_info[prop]["en"]
+                            } for prop in props if prop in property_info
+                        }
+                    }
+                result["categorized_properties"] = categorized_properties
+        
+        return result
+        
+    except Exception as e:
+        logger.exception("Error occurred while retrieving property information")
         return {"error": f"An error occurred: {str(e)}"}
 
 
