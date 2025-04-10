@@ -1,44 +1,44 @@
 # Molecular Weight Calculator MCP
 
-分子構造のSMILESからCSVファイル内の化合物の分子量を計算するためのModel Context Protocol (MCP) サーバー
+An Model Context Protocol (MCP) server for calculating molecular weights of compounds in CSV files from SMILES notation
 
-## 概要
+## Overview
 
-このMCPサーバーは、CSVファイル内のSMILES列から分子量や他の分子特性（脂溶性、水素結合ドナー数、水素結合アクセプター数、分子式など）を計算し、結果を新しい列として追加します。Claude Desktopと連携して使用することで、化学データの簡単な解析が可能になります。
+This MCP server calculates molecular weights and other molecular properties (lipophilicity, hydrogen bond donors, hydrogen bond acceptors, molecular formula, etc.) from SMILES columns in CSV files and adds the results as new columns. When used with Claude Desktop, it enables simple analysis of chemical data.
 
-## 環境要件
+## Requirements
 
-- Python 3.10以上
+- Python 3.10 or higher
 - RDKit 2024.9.6
 - pandas 2.2.3
-- mcp (Model Context Protocol) パッケージ v1.2.0以上
+- mcp (Model Context Protocol) package v1.2.0 or higher
 - Claude Desktop
-- uv (Pythonパッケージマネージャー)
+- uv (Python package manager)
 
-## インストール方法
+## Installation
 
-### 1. 依存関係のインストール
+### 1. Install Dependencies
 
 ```bash
-# uvを使用する場合
+# Using uv
 uv pip install "rdkit==2024.9.6" "pandas==2.2.3" "mcp[cli,server]>=1.2.0"
 
-# pipを使用する場合
+# Using pip
 pip install "rdkit==2024.9.6" "pandas==2.2.3" "mcp[cli,server]>=1.2.0"
 ```
 
-## 使用方法
+## Usage
 
-### 1. Claude Desktopでの使用
+### 1. Using with Claude Desktop
 
-#### 設定ファイルの編集
+#### Edit the configuration file
 
-Claude Desktopの設定ファイルを編集して、このMCPサーバーを追加します。設定ファイルのパスは以下の通りです：
+Edit the Claude Desktop configuration file to add this MCP server. The configuration file path is:
 
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-以下のJSON設定を追加します（既存の`mcpServers`オブジェクト内に追加）：
+Add the following JSON configuration (within the existing `mcpServers` object):
 
 ```json
 {
@@ -62,34 +62,34 @@ Claude Desktopの設定ファイルを編集して、このMCPサーバーを追
 }
 ```
 
-注意:
-- `uv` コマンドが環境変数のパスに含まれていない場合は、絶対パス（例：`/path/to/uv`）を使用してください。
-- `/path/to/chatMol/server.py` の部分は、このスクリプトの絶対パスを指定してください。
-- 相対パスは使用せず、必ず絶対パスを使用してください。
+Note:
+- If the `uv` command is not in your environment path, use an absolute path (e.g.: `/path/to/uv`).
+- Replace `/path/to/chatMol/server.py` with the absolute path to this script.
+- Always use absolute paths, not relative paths.
 
-### 2. 使用可能なツール
+### 2. Available Tools
 
-このMCPサーバーは以下のツールを提供します：
+This MCP server provides the following tool:
 
 #### add_molecular_weight
 
-- 説明：CSVデータ内のSMILES列から分子量などの特性を計算し、結果を新しい列として追加します
-- 入力パラメータ：
-  - `csv_content`：処理するCSVデータの内容（必須）
-  - `smiles_column`：SMILES構造を含む列名（省略時は一番右の列を使用）
-  - `properties`：計算する特性のリスト（省略時は分子量のみ）
-    - `molecular_weight`：分子量
-    - `logp`：脂溶性
-    - `num_h_donors`：水素結合ドナー数
-    - `num_h_acceptors`：水素結合アクセプター数
-    - `formula`：分子式
+- Description: Calculates molecular properties from SMILES columns in CSV data and adds the results as new columns
+- Input parameters:
+  - `csv_content`: CSV data content to process (required)
+  - `smiles_column`: Column name containing SMILES structures (if omitted, uses the rightmost column)
+  - `properties`: List of properties to calculate (if omitted, calculates molecular weight only)
+    - `molecular_weight`: Molecular weight
+    - `logp`: Lipophilicity
+    - `num_h_donors`: Number of hydrogen bond donors
+    - `num_h_acceptors`: Number of hydrogen bond acceptors
+    - `formula`: Molecular formula
 
-### 使用例
+### Examples
 
-Claude Desktopで以下のように入力することで、CSVデータ内のSMILES列から分子量を計算できます：
+In Claude Desktop, you can calculate molecular weights from SMILES columns in CSV data as follows:
 
 ```
-このCSVファイルの分子量を計算してください：
+Please calculate the molecular weights for this CSV file:
 
 ID,Name,SMILES
 1,Aspirin,CC(=O)OC1=CC=CC=C1C(=O)O
@@ -97,10 +97,10 @@ ID,Name,SMILES
 3,Ibuprofen,CC(C)CC1=CC=C(C=C1)C(C)C(=O)O
 ```
 
-複数の特性を同時に計算する場合：
+To calculate multiple properties simultaneously:
 
 ```
-このCSVのSMILES列から分子量、脂溶性、分子式を計算してください：
+Please calculate molecular weight, logP, and molecular formula from the SMILES column in this CSV:
 
 ID,Name,SMILES
 1,Aspirin,CC(=O)OC1=CC=CC=C1C(=O)O
@@ -108,10 +108,10 @@ ID,Name,SMILES
 3,Ibuprofen,CC(C)CC1=CC=C(C=C1)C(C)C(=O)O
 ```
 
-また、SMILES列の列名を指定することもできます：
+You can also specify the column name containing SMILES:
 
 ```
-このCSVデータのsmiles_col列から分子量を計算してください：
+Please calculate molecular weights from the smiles_col column in this CSV data:
 
 ID,Name,smiles_col
 1,Aspirin,CC(=O)OC1=CC=CC=C1C(=O)O
@@ -119,6 +119,6 @@ ID,Name,smiles_col
 3,Ibuprofen,CC(C)CC1=CC=C(C=C1)C(C)C(=O)O
 ```
 
-## ライセンス
+## License
 
 MIT

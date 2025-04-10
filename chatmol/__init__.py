@@ -1,5 +1,5 @@
 """
-chatMol - 分子構造からの物性値計算を行うライブラリ
+chatMol - Library for calculating molecular properties from molecular structures
 """
 
 from .properties import calculate_molecular_weight, calculate_properties
