@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Optional, Union, Callable
 
 import pandas as pd
 
-from .properties import (calculate_properties, check_lipinski_rule, check_veber_rules,
-                         check_ghose_filter, check_egan_filter, check_muegge_filter,
-                         check_pains_filter, get_druglikeness_filters_summary)
+from .properties import (calculate_properties, calculate_all_properties, 
+                       calculate_selected_properties, calculate_molecular_features,
+                       MOLECULAR_FILTERS)
 
 # Logger configuration
 logging.basicConfig(
@@ -19,39 +19,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ドラッグライクネスフィルター関数と列名のマッピング
-DRUGLIKENESS_FILTERS = {
-    "lipinski": {
-        "function": check_lipinski_rule,
-        "result_key": "all_rules_passed",
-        "column_name": "lipinski_pass"
-    },
-    "veber": {
-        "function": check_veber_rules,
-        "result_key": "all_rules_passed",
-        "column_name": "veber_pass"
-    },
-    "ghose": {
-        "function": check_ghose_filter,
-        "result_key": "all_rules_passed",
-        "column_name": "ghose_pass"
-    },
-    "egan": {
-        "function": check_egan_filter,
-        "result_key": "all_rules_passed",
-        "column_name": "egan_pass"
-    },
-    "muegge": {
-        "function": check_muegge_filter,
-        "result_key": "all_rules_passed",
-        "column_name": "muegge_pass"
-    },
-    "pains": {
-        "function": check_pains_filter,
-        "result_key": "pains_free",
-        "column_name": "pains_free"
-    }
-}
 
 def process_csv_data(csv_content: str, smiles_column: Optional[str] = None, 
                    properties: List[str] = None, filters: List[str] = None) -> Dict[str, Any]:
@@ -98,63 +65,55 @@ def process_csv_data(csv_content: str, smiles_column: Optional[str] = None,
         # Prepare DataFrame for results
         result_df = df.copy()
         
-        # 'all'フィルターが指定された場合、すべてのフィルターを適用
-        if 'all' in filters:
-            filters = list(DRUGLIKENESS_FILTERS.keys())
-        
-        # 適用するフィルターの情報を整理
-        applied_filters = []
-        filter_configs = []
-        for filter_name in filters:
-            if filter_name in DRUGLIKENESS_FILTERS:
-                filter_info = DRUGLIKENESS_FILTERS[filter_name]
-                column_name = filter_info["column_name"]
-                result_df[column_name] = None
-                applied_filters.append(filter_name)
-                filter_configs.append({
-                    "name": filter_name,
-                    "function": filter_info["function"],
-                    "result_key": filter_info["result_key"],
-                    "column_name": column_name
-                })
-        
-        # 計算するプロパティのカラムを初期化
-        property_columns = {}
-        for prop in properties:
-            column_name = prop
-            # カラム名が既に存在する場合は名前を変更
-            if prop in df.columns and prop != smiles_column:
-                column_name = f"{prop}_calculated"
-            result_df[column_name] = None
-            property_columns[prop] = column_name
-        
-        # 一度のループで各SMILESに対してプロパティとフィルターを計算
+        # 一度のループで各SMILESに対して物性値とフィルターを同時に計算
         for idx, row in result_df.iterrows():
             smiles = row[smiles_column]
             
-            # プロパティを計算（必要な場合のみ）
-            if properties:
-                props = calculate_properties(smiles)
-                for prop_name, column_name in property_columns.items():
-                    if prop_name in props:
-                        result_df.at[idx, column_name] = props[prop_name]
+            # 統合関数を使って一度にすべての計算を実行
+            features_result = calculate_molecular_features(smiles, properties, filters)
             
-            # フィルターを適用（必要な場合のみ）
-            for config in filter_configs:
-                filter_func = config["function"]
-                result_key = config["result_key"]
-                column_name = config["column_name"]
+            # 物性値の結果をDataFrameに追加
+            for prop_name, prop_value in features_result["properties"].items():
+                column_name = prop_name
+                # カラム名が既に存在する場合は名前を変更
+                if prop_name in df.columns and prop_name != smiles_column:
+                    column_name = f"{prop_name}_calculated"
                 
-                # フィルター関数を実行し、結果を取得
-                filter_result = filter_func(smiles)
+                # 列が存在しない場合は追加
+                if column_name not in result_df.columns:
+                    result_df[column_name] = None
                 
-                # ブール値結果を取り出して、DataFrame列に追加
-                result_df.at[idx, column_name] = filter_result[result_key]
+                # 値を設定
+                result_df.at[idx, column_name] = prop_value
+            
+            # フィルター判定結果をDataFrameに追加
+            for filter_name in filters:
+                if filter_name in MOLECULAR_FILTERS:
+                    column_name = f"{filter_name}_pass"
+                    
+                    # 列が存在しない場合は追加
+                    if column_name not in result_df.columns:
+                        result_df[column_name] = None
+                    
+                    # 値を設定（統合関数の結果から直接取得）
+                    if column_name in features_result:
+                        result_df.at[idx, column_name] = features_result[column_name]
+            
+            # 全フィルター通過フラグを追加（フィルターが指定されている場合）
+            if filters and "all_filters_passed" in features_result:
+                if "all_filters_passed" not in result_df.columns:
+                    result_df["all_filters_passed"] = None
+                result_df.at[idx, "all_filters_passed"] = features_result["all_filters_passed"]
         
         # Return results in CSV format
         output = io.StringIO()
         result_df.to_csv(output, index=False)
         csv_result = output.getvalue()
+        
+        # 適用されたフィルター名を取得
+        applied_filters = [f for f in filters if f in MOLECULAR_FILTERS]
+        if 'all' in filters:
+            applied_filters = list(MOLECULAR_FILTERS.keys())
         
         return {
             "result": csv_result,

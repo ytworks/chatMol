@@ -1116,3 +1116,130 @@ def get_druglikeness_filters_summary(smiles: str) -> Dict[str, bool]:
         logger.error(f"Error occurred during drug-likeness summary generation: {str(e)}")
     
     return result
+
+
+# フィルターとその結果キーのマッピング
+MOLECULAR_FILTERS = {
+    "lipinski": {
+        "function": check_lipinski_rule,
+        "result_key": "all_rules_passed",
+        "description": "Lipinski's Rule of Five (MW≤500, LogP≤5, HBD≤5, HBA≤10)"
+    },
+    "veber": {
+        "function": check_veber_rules,
+        "result_key": "all_rules_passed",
+        "description": "Veber's rules (TPSA≤140, RotBonds≤10)"
+    },
+    "ghose": {
+        "function": check_ghose_filter,
+        "result_key": "all_rules_passed",
+        "description": "Ghose filter (160≤MW≤480, -0.4≤LogP≤5.6, 20≤atoms≤70, 40≤MR≤130)"
+    },
+    "egan": {
+        "function": check_egan_filter,
+        "result_key": "all_rules_passed",
+        "description": "Egan filter (LogP≤5.88, TPSA≤131.6)"
+    },
+    "muegge": {
+        "function": check_muegge_filter,
+        "result_key": "all_rules_passed",
+        "description": "Muegge filter (200≤MW≤600, -2≤LogP≤5, TPSA≤150, rings≤7, HBA≤10, HBD≤5, RotBonds<15)"
+    },
+    "pains": {
+        "function": check_pains_filter,
+        "result_key": "pains_free",
+        "description": "PAINS filter (screens for pan-assay interference compounds)"
+    }
+}
+
+
+def calculate_molecular_features(
+    smiles: str, 
+    properties: List[str] = None, 
+    filters: List[str] = None, 
+    use_rdkit_mol: bool = False
+) -> Dict[str, Any]:
+    """
+    統合関数: 一度のRDKit処理で物性値計算とフィルター判定を同時に行う
+    
+    Args:
+        smiles: 分子構造をSMILES表記で
+        properties: 計算する物性値のリスト（例: ["molecular_weight", "logp"]）
+        filters: 適用するフィルターのリスト（例: ["lipinski", "veber"]）
+        use_rdkit_mol: Trueの場合、RDKit分子オブジェクトも返す（再利用のため）
+    
+    Returns:
+        Dict: 計算された物性値とフィルター結果を含む辞書
+    """
+    # 初期値を設定
+    if properties is None:
+        properties = []
+    
+    if filters is None:
+        filters = []
+    
+    # 'all'が指定された場合、全ての物性値を計算
+    if len(properties) == 1 and properties[0].lower() == 'all':
+        properties = get_available_properties()
+    
+    # 'all'が指定された場合、全てのフィルターを適用
+    if 'all' in filters:
+        filters = list(MOLECULAR_FILTERS.keys())
+    
+    # 結果辞書を初期化
+    result = {
+        "properties": {},
+        "filters": {},
+        "smiles": smiles
+    }
+    
+    # RDKitが利用可能かチェック
+    if not rdkit_available:
+        logger.error("RDKitがインストールされていないため、分子特性を計算できません")
+        if use_rdkit_mol:
+            result["mol"] = None
+        return result
+    
+    try:
+        # SMILES文字列からRDKit分子オブジェクトを作成（一度だけ）
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            logger.warning(f"無効なSMILES文字列です: {smiles}")
+            if use_rdkit_mol:
+                result["mol"] = None
+            return result
+        
+        # 分子オブジェクトを保存（オプション）
+        if use_rdkit_mol:
+            result["mol"] = mol
+        
+        # 要求された物性値を計算
+        if properties:
+            all_props = calculate_all_properties(smiles) if properties else {}
+            for prop in properties:
+                if prop in all_props:
+                    result["properties"][prop] = all_props[prop]
+        
+        # 要求されたフィルターを適用
+        for filter_name in filters:
+            if filter_name in MOLECULAR_FILTERS:
+                filter_info = MOLECULAR_FILTERS[filter_name]
+                filter_func = filter_info["function"]
+                filter_result = filter_func(smiles)  # フィルター関数を実行
+                
+                # フィルター結果全体を保存
+                result["filters"][filter_name] = filter_result
+                
+                # フィルター判定結果（合否）をトップレベルに追加
+                result_key = filter_info["result_key"]
+                result[f"{filter_name}_pass"] = filter_result[result_key]
+        
+        # 全てのフィルターを通過したかの総合判定
+        if filters:
+            all_passed = all(result[f"{f}_pass"] for f in filters)
+            result["all_filters_passed"] = all_passed
+        
+    except Exception as e:
+        logger.error(f"分子特性の計算中にエラーが発生しました: {str(e)}")
+    
+    return result

@@ -30,9 +30,10 @@ try:
         get_property_descriptions, get_property_categories,
         check_lipinski_rule, check_veber_rules, check_ghose_filter,
         check_egan_filter, check_muegge_filter, check_pains_filter,
-        get_druglikeness_filters_summary, check_all_druglikeness_filters
+        get_druglikeness_filters_summary, check_all_druglikeness_filters,
+        calculate_molecular_features, MOLECULAR_FILTERS
     )
-    from chatmol.io import process_csv_data, DRUGLIKENESS_FILTERS
+    from chatmol.io import process_csv_data
     
     rdkit_available = True
 except ImportError as e:
@@ -103,32 +104,30 @@ def add_molecular_weight(csv_content: str, smiles_column: Optional[str] = None, 
 
 
 @mcp.tool()
-def calculate_molecular_properties(smiles: str, properties: List[str] = None) -> Dict[str, Any]:
+def calculate_molecular_properties(smiles: str, properties: List[str] = None, filters: List[str] = None) -> Dict[str, Any]:
     """
-    Calculate molecular properties for a single SMILES string
+    Calculate molecular properties and apply druglikeness filters for a single SMILES string
     
     Args:
         smiles: Molecular structure in SMILES notation
         properties: List of specific properties to calculate. If None, returns basic properties only.
                    If ['all'], returns all available properties.
+        filters: List of druglikeness filters to apply ('lipinski', 'veber', 'ghose',
+                'egan', 'muegge', 'pains', 'all'). If None, no filters are applied.
     
     Returns:
-        Dict: Dictionary containing calculated molecular properties
+        Dict: Dictionary containing calculated molecular properties and filter results
     """
     try:
         if not smiles:
             return {"error": "No SMILES string provided"}
         
-        # 基本的な物性値を計算（デフォルト）
-        if properties is None:
-            return calculate_properties(smiles)
-        
-        # 全ての物性値を計算
-        if len(properties) == 1 and properties[0].lower() == 'all':
-            return calculate_all_properties(smiles)
-        
-        # 指定された物性値のみを計算
-        return calculate_selected_properties(smiles, properties)
+        # プロパティとフィルターを一度の処理で計算
+        if filters or properties:
+            return calculate_molecular_features(smiles, properties, filters)
+            
+        # フィルターもプロパティも指定されていない場合は、基本プロパティのみを返す
+        return calculate_properties(smiles)
         
     except Exception as e:
         logger.exception("Error occurred during property calculation")
