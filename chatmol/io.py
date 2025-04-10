@@ -58,20 +58,24 @@ def process_csv_data(csv_content: str, smiles_column: Optional[str] = None,
         # Prepare DataFrame for results
         result_df = df.copy()
         
+        # Initialize the property columns
+        for prop in properties:
+            result_df[prop] = None
+        
         # Calculate and add specified properties
-        for smiles_idx, smiles in enumerate(result_df[smiles_column]):
+        for idx, row in result_df.iterrows():
+            smiles = row[smiles_column]
             props = calculate_properties(smiles)
             
             # Add only requested properties
             for prop_name in properties:
                 if prop_name in props:
-                    if result_df.shape[0] > smiles_idx:  # Check if index is within range
-                        column_name = prop_name
-                        # Rename column if it already exists
-                        if prop_name in result_df.columns and prop_name != smiles_column:
-                            column_name = f"{prop_name}_calculated"
-                        
-                        result_df.loc[smiles_idx, column_name] = props[prop_name]
+                    column_name = prop_name
+                    # Rename column if it already exists
+                    if prop_name in df.columns and prop_name != smiles_column:
+                        column_name = f"{prop_name}_calculated"
+                    
+                    result_df.at[idx, column_name] = props[prop_name]
         
         # Return results in CSV format
         output = io.StringIO()
