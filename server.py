@@ -25,7 +25,7 @@ try:
     # Import chatMol library
     from chatmol.properties import calculate_molecular_features, get_available_properties
     from chatmol.properties import get_feature_descriptions
-    from chatmol.io import convert_properties_to_markdown, convert_dataframe_to_markdown, add_properties_to_dataframe
+    from chatmol.io import add_properties_to_dataframe
     
     rdkit_available = True
 except ImportError as e:
@@ -79,9 +79,7 @@ mcp = FastMCP("Molecular Properties Calculator")
 def calculate_molecular_properties(
     input_data: str, 
     input_type: str = "smiles", 
-    smiles_column: Optional[str] = None, 
-    output_format: str = "csv",
-    properties_to_display: Optional[str] = None
+    smiles_column: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Calculate molecular properties for SMILES strings or CSV data
@@ -90,56 +88,20 @@ def calculate_molecular_properties(
         input_data: Either a single SMILES string or CSV data content
         input_type: Type of input data - "smiles" for a single SMILES string or "csv" for CSV data
         smiles_column: Column name containing SMILES structures (for CSV input, if omitted, uses the rightmost column)
-        output_format: Desired output format - "csv" or "markdown"
-        properties_to_display: Comma-separated list of property names to display (only affects markdown output)
     
     Returns:
-        Dict: Dictionary containing calculated molecular properties and filter results
+        Dict: Dictionary containing calculated molecular properties
     """
     try:
         # 入力データが空の場合
         if not input_data:
             return {"error": "No input data provided"}
         
-        # properties_to_displayの処理
-        display_props = None
-        if properties_to_display:
-            # カンマ区切りの文字列をリストに変換
-            display_props = [prop.strip() for prop in properties_to_display.split(',')]
-            # 有効なプロパティ名かチェック
-            available_props = get_available_properties()
-            invalid_props = [p for p in display_props if p not in available_props]
-            if invalid_props:
-                return {"error": f"Invalid property names: {', '.join(invalid_props)}"}
-        
         # 単一SMILESの処理
         if input_type.lower() == "smiles":
-            # 単一SMILESに対して計算
+            # 単一SMILESに対して計算して直接返す
             features = calculate_molecular_features(input_data)
-            
-            # 出力形式に応じた処理
-            if output_format.lower() == "markdown":
-                try:
-                    # マークダウン形式でプロパティを出力（表示プロパティ制限）
-                    markdown = convert_properties_to_markdown(
-                        input_data, 
-                        features,
-                        properties_to_show=display_props
-                    )
-                    return {
-                        "result_format": "markdown",
-                        "result": markdown
-                    }
-                except Exception as e:
-                    logger.error(f"マークダウン変換中にエラーが発生: {str(e)}")
-                    return {
-                        "result_format": "text",
-                        "result": str(features),
-                        "message": "マークダウン形式での出力に失敗しました。テキスト形式での出力に切り替えます。"
-                    }
-            else:
-                # デフォルトはそのままfeaturesを返す
-                return features
+            return features
                 
         # CSV形式の処理        
         elif input_type.lower() == "csv":
@@ -197,42 +159,16 @@ def calculate_molecular_properties(
             # プロパティを結果に追加
             add_properties_to_dataframe(result_df, feature_results)
             
-            # 出力形式に応じて結果を返す
-            if output_format.lower() == "markdown":
-                try:
-                    # マークダウン形式で表示プロパティを制限して出力
-                    markdown_result = convert_dataframe_to_markdown(
-                        result_df,
-                        properties_to_show=display_props
-                    )
-                    return {
-                        "result_format": "markdown",
-                        "result": markdown_result,
-                        "message": f"Processed {len(smiles_list)} compounds"
-                    }
-                except Exception as e:
-                    logger.exception("Error converting to markdown format")
-                    # マークダウン変換に失敗した場合は、CSVでフォールバック
-                    output = io.StringIO()
-                    result_df.to_csv(output, index=False)
-                    csv_result = output.getvalue()
-                    
-                    return {
-                        "result_format": "csv",
-                        "result": csv_result,
-                        "message": f"Processed {len(smiles_list)} compounds (マークダウン形式への変換に失敗したため、CSV形式で出力します)"
-                    }
-            else:
-                # CSV形式で出力
-                output = io.StringIO()
-                result_df.to_csv(output, index=False)
-                csv_result = output.getvalue()
-                
-                return {
-                    "result_format": "csv",
-                    "result": csv_result,
-                    "message": f"Processed {len(smiles_list)} compounds"
-                }
+            # CSV形式で出力
+            output = io.StringIO()
+            result_df.to_csv(output, index=False)
+            csv_result = output.getvalue()
+            
+            return {
+                "result_format": "csv",
+                "result": csv_result,
+                "message": f"Processed {len(smiles_list)} compounds"
+            }
         else:
             return {"error": f"Unsupported input_type: {input_type}. Use 'smiles' or 'csv'."}
             
