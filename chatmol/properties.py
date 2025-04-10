@@ -2,7 +2,7 @@
 Module providing functionality for calculating molecular properties from molecular structures
 """
 import logging
-from typing import Dict, Union, List, Any, Optional, Tuple
+from typing import Dict, Union, List, Any, Optional
 
 # Logger configuration
 logging.basicConfig(
@@ -23,314 +23,6 @@ try:
 except ImportError:
     logger.warning("Unable to import RDKit module. Please verify it is installed on your system.")
     rdkit_available = False
-
-
-def calculate_molecular_weight(smiles: str) -> float:
-    """
-    Calculate molecular weight from SMILES string
-
-    Args:
-        smiles: Molecular structure in SMILES notation
-
-    Returns:
-        float: Molecular weight. Returns NaN if SMILES string is invalid
-    """
-    if not rdkit_available:
-        logger.error("Cannot calculate molecular weight because RDKit is not installed.")
-        return float('nan')
-        
-    try:
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            logger.warning(f"Invalid SMILES string: {smiles}")
-            return float('nan')
-        return Descriptors.MolWt(mol)
-    except Exception as e:
-        logger.error(f"Error occurred during molecular weight calculation: {str(e)}")
-        return float('nan')
-
-
-def calculate_properties(smiles: str) -> Dict[str, Union[float, str, None]]:
-    """
-    Get basic molecular properties from SMILES string
-
-    Args:
-        smiles: Molecular structure in SMILES notation
-
-    Returns:
-        Dict: Dictionary containing basic molecular properties
-    """
-    props = {
-        "molecular_weight": float('nan'),
-        "logp": float('nan'),
-        "num_h_donors": float('nan'),
-        "num_h_acceptors": float('nan'),
-        "formula": None
-    }
-    
-    if not rdkit_available:
-        logger.error("Cannot calculate molecular properties because RDKit is not installed.")
-        return props
-        
-    try:
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            logger.warning(f"Invalid SMILES string: {smiles}")
-            return props
-            
-        props["molecular_weight"] = Descriptors.MolWt(mol)
-        props["logp"] = Descriptors.MolLogP(mol)
-        props["num_h_donors"] = Descriptors.NumHDonors(mol)
-        props["num_h_acceptors"] = Descriptors.NumHAcceptors(mol)
-        props["formula"] = rdMolDescriptors.CalcMolFormula(mol)
-    except Exception as e:
-        logger.error(f"Error occurred during property calculation: {str(e)}")
-        
-    return props
-
-
-def calculate_all_properties(smiles: str) -> Dict[str, Union[float, str, None]]:
-    """
-    Calculate comprehensive molecular properties from SMILES string
-    
-    Args:
-        smiles: Molecular structure in SMILES notation
-        
-    Returns:
-        Dict: Dictionary containing comprehensive molecular properties
-    """
-    # Initialize with basic properties and NaN values
-    props = {
-        # Basic properties
-        "molecular_weight": float('nan'),           # 分子量
-        "exact_mol_wt": float('nan'),              # 厳密分子量
-        "heavy_atom_mol_wt": float('nan'),         # 重原子分子量
-        "formula": None,                           # 分子式
-        
-        # Lipophilicity/Hydrophilicity
-        "logp": float('nan'),                      # LogP
-        "mol_mr": float('nan'),                    # モル屈折率
-        "tpsa": float('nan'),                      # トポロジカル極性表面積
-
-        # Surface areas
-        "labute_asa": float('nan'),                # Labute推定表面積
-        
-        # H-bonds and atom counts
-        "num_h_donors": float('nan'),              # 水素結合ドナー数
-        "num_h_acceptors": float('nan'),           # 水素結合アクセプター数
-        "num_rotatable_bonds": float('nan'),       # 回転可能結合数
-        "heavy_atom_count": float('nan'),          # 重原子数
-        "num_hetero_atoms": float('nan'),          # ヘテロ原子数
-        "no_count": float('nan'),                  # N/O原子数
-        "nhoh_count": float('nan'),                # OH/NH基数
-        "num_valence_electrons": float('nan'),     # 原子価電子数
-        
-        # Ring information
-        "num_aromatic_rings": float('nan'),        # 芳香環数
-        "num_aliphatic_rings": float('nan'),       # 脂肪族環数
-        "num_saturated_rings": float('nan'),       # 飽和環数
-        "num_aromatic_carbocycles": float('nan'),  # 芳香族炭素環数
-        "num_aromatic_heterocycles": float('nan'), # 芳香族複素環数
-        "num_aliphatic_carbocycles": float('nan'), # 脂肪族炭素環数
-        "num_aliphatic_heterocycles": float('nan'),# 脂肪族複素環数
-        "num_saturated_carbocycles": float('nan'), # 飽和炭素環数
-        "num_saturated_heterocycles": float('nan'),# 飽和複素環数
-        "ring_count": float('nan'),                # 環数（総数）
-        
-        # Bond/functional group counts
-        "num_amide_bonds": float('nan'),           # アミド結合数
-        "fraction_csp3": float('nan'),             # 炭素sp³割合
-        
-        # Molecular complexity
-        "num_spiro_atoms": float('nan'),           # スピロ原子数
-        "num_bridgehead_atoms": float('nan'),      # ブリッジヘッド原子数
-        "num_stereo_centers": float('nan'),        # 立体中心数
-        "num_unspecified_stereo_centers": float('nan'), # 未指定立体中心数
-        
-        # Charge related
-        "max_partial_charge": float('nan'),        # 最大部分電荷
-        "min_partial_charge": float('nan'),        # 最小部分電荷
-        "max_abs_partial_charge": float('nan'),    # 最大絶対値部分電荷
-        "min_abs_partial_charge": float('nan'),    # 最小絶対値部分電荷
-        
-        # EState indices
-        "max_estate_index": float('nan'),          # 最大EState指数
-        "min_estate_index": float('nan'),          # 最小EState指数
-        "max_abs_estate_index": float('nan'),      # 最大絶対値EState指数
-        "min_abs_estate_index": float('nan'),      # 最小絶対値EState指数
-
-        # Graph indices
-        "balaban_j": float('nan'),                 # BalabanのJ指数
-        "bertz_ct": float('nan'),                  # Bertzの複雑度指数
-        "ipc": float('nan'),                       # Ipc情報指数
-        "hall_kier_alpha": float('nan'),           # Hall–Kierのαパラメータ
-        
-        # Kappa shape indices
-        "kappa1": float('nan'),                    # κ形状指数1
-        "kappa2": float('nan'),                    # κ形状指数2 
-        "kappa3": float('nan'),                    # κ形状指数3
-        
-        # Chi connectivity indices
-        "chi0": float('nan'),                      # χ0接続性指数
-        "chi1": float('nan'),                      # χ1接続性指数
-        "chi0v": float('nan'),                     # χ0v接続性指数（原子価考慮）
-        "chi1v": float('nan'),                     # χ1v接続性指数（原子価考慮）
-        
-        # QED drug-likeness
-        "qed": float('nan'),                       # QED薬剤様性スコア
-    }
-    
-    # フラグメントカウント系のプロパティを初期化
-    # あえて辞書に含めない（実行時に動的に処理する）
-    
-    if not rdkit_available:
-        logger.error("Cannot calculate molecular properties because RDKit is not installed.")
-        return props
-        
-    try:
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            logger.warning(f"Invalid SMILES string: {smiles}")
-            return props
-            
-        # 基本的な分子特性
-        props["molecular_weight"] = Descriptors.MolWt(mol)
-        props["exact_mol_wt"] = Descriptors.ExactMolWt(mol)
-        props["heavy_atom_mol_wt"] = Descriptors.HeavyAtomMolWt(mol)
-        props["formula"] = rdMolDescriptors.CalcMolFormula(mol)
-        
-        # 親油性/親水性
-        props["logp"] = Descriptors.MolLogP(mol)
-        props["mol_mr"] = Descriptors.MolMR(mol)
-        props["tpsa"] = Descriptors.TPSA(mol)
-        
-        # 表面積
-        props["labute_asa"] = Descriptors.LabuteASA(mol)
-        
-        # 水素結合と原子数
-        props["num_h_donors"] = Descriptors.NumHDonors(mol)
-        props["num_h_acceptors"] = Descriptors.NumHAcceptors(mol)
-        props["num_rotatable_bonds"] = Descriptors.NumRotatableBonds(mol)
-        props["heavy_atom_count"] = Descriptors.HeavyAtomCount(mol)
-        props["num_hetero_atoms"] = Descriptors.NumHeteroatoms(mol)
-        props["no_count"] = Lipinski.NOCount(mol)
-        props["nhoh_count"] = Lipinski.NHOHCount(mol)
-        props["num_valence_electrons"] = Descriptors.NumValenceElectrons(mol)
-        
-        # 環構造情報
-        props["num_aromatic_rings"] = Descriptors.NumAromaticRings(mol)
-        props["num_aliphatic_rings"] = Descriptors.NumAliphaticRings(mol)
-        props["num_saturated_rings"] = Descriptors.NumSaturatedRings(mol)
-        props["num_aromatic_carbocycles"] = Descriptors.NumAromaticCarbocycles(mol)
-        props["num_aromatic_heterocycles"] = Descriptors.NumAromaticHeterocycles(mol)
-        props["num_aliphatic_carbocycles"] = Descriptors.NumAliphaticCarbocycles(mol)
-        props["num_aliphatic_heterocycles"] = Descriptors.NumAliphaticHeterocycles(mol)
-        props["num_saturated_carbocycles"] = Descriptors.NumSaturatedCarbocycles(mol)
-        props["num_saturated_heterocycles"] = Descriptors.NumSaturatedHeterocycles(mol)
-        props["ring_count"] = Descriptors.RingCount(mol)
-        
-        # 結合/官能基カウント
-        props["num_amide_bonds"] = Descriptors.NumAmideBonds(mol)
-        props["fraction_csp3"] = Descriptors.FractionCSP3(mol)
-        
-        # 分子複雑性
-        props["num_spiro_atoms"] = Descriptors.NumSpiroAtoms(mol)
-        props["num_bridgehead_atoms"] = Descriptors.NumBridgeheadAtoms(mol)
-        props["num_stereo_centers"] = Descriptors.NumAtomStereoCenters(mol)
-        props["num_unspecified_stereo_centers"] = Descriptors.NumUnspecifiedAtomStereoCenters(mol)
-        
-        # 電荷関連（部分電荷計算要求がある場合）
-        try:
-            # 部分電荷計算の試み（失敗しても処理継続）
-            AllChem.ComputeGasteigerCharges(mol)
-            charges = [float(atom.GetProp('_GasteigerCharge')) for atom in mol.GetAtoms()]
-            if charges:
-                props["max_partial_charge"] = max(charges)
-                props["min_partial_charge"] = min(charges)
-                abs_charges = [abs(c) for c in charges]
-                props["max_abs_partial_charge"] = max(abs_charges)
-                props["min_abs_partial_charge"] = min(abs_charges)
-        except Exception as e:
-            logger.warning(f"Failed to compute partial charges: {str(e)}")
-
-        # EState指数関連
-        try:
-            estate_indices = EState.EStateIndices(mol)
-            if estate_indices:
-                props["max_estate_index"] = max(estate_indices)
-                props["min_estate_index"] = min(estate_indices)
-                abs_estate = [abs(i) for i in estate_indices]
-                props["max_abs_estate_index"] = max(abs_estate)
-                props["min_abs_estate_index"] = min(abs_estate)
-        except Exception as e:
-            logger.warning(f"Failed to compute EState indices: {str(e)}")
-            
-        # グラフ指数
-        props["balaban_j"] = GraphDescriptors.BalabanJ(mol)
-        props["bertz_ct"] = GraphDescriptors.BertzCT(mol)
-        props["ipc"] = GraphDescriptors.Ipc(mol)
-        props["hall_kier_alpha"] = GraphDescriptors.HallKierAlpha(mol)
-
-        # κ形状指数
-        props["kappa1"] = GraphDescriptors.Kappa1(mol)
-        props["kappa2"] = GraphDescriptors.Kappa2(mol)
-        props["kappa3"] = GraphDescriptors.Kappa3(mol)
-        
-        # χ接続性指数
-        props["chi0"] = GraphDescriptors.Chi0(mol)
-        props["chi1"] = GraphDescriptors.Chi1(mol)
-        props["chi0v"] = GraphDescriptors.Chi0v(mol)
-        props["chi1v"] = GraphDescriptors.Chi1v(mol)
-
-        # QED薬剤様性
-        try:
-            props["qed"] = QED.qed(mol)
-        except Exception as e:
-            logger.warning(f"Failed to compute QED: {str(e)}")
-        
-        # フラグメント解析（官能基カウント）
-        fragment_props = {}
-        for name in dir(Fragments):
-            if name.startswith('fr_'):
-                try:
-                    func = getattr(Fragments, name)
-                    if callable(func):
-                        fragment_props[name] = func(mol)
-                except Exception as e:
-                    logger.debug(f"Failed to compute {name}: {str(e)}")
-        
-        # フラグメント解析結果をpropsに追加
-        props.update(fragment_props)
-        
-    except Exception as e:
-        logger.error(f"Error occurred during comprehensive property calculation: {str(e)}")
-        
-    return props
-
-
-def calculate_selected_properties(smiles: str, properties_list: List[str]) -> Dict[str, Any]:
-    """
-    Calculate only selected molecular properties from SMILES string
-    
-    Args:
-        smiles: Molecular structure in SMILES notation
-        properties_list: List of property names to calculate
-        
-    Returns:
-        Dict: Dictionary containing only the requested molecular properties
-    """
-    # まず全ての物性値を計算
-    all_props = calculate_all_properties(smiles)
-    
-    # 要求されたプロパティのみを抽出
-    selected_props = {prop: all_props.get(prop, None) for prop in properties_list if prop in all_props}
-    
-    # 要求されたが利用できないプロパティをログ出力
-    missing_props = [prop for prop in properties_list if prop not in all_props]
-    if missing_props:
-        logger.warning(f"The following requested properties are not available: {', '.join(missing_props)}")
-    
-    return selected_props
 
 
 def get_property_descriptions() -> Dict[str, Dict[str, str]]:
@@ -629,96 +321,6 @@ def get_property_descriptions() -> Dict[str, Dict[str, str]]:
     }
 
 
-def get_properties_table(format: str = "markdown", language: str = "ja") -> str:
-    """
-    Generate a formatted table of all available molecular properties
-    
-    Args:
-        format: Output format ('markdown', 'csv', 'json', 'text')
-        language: Language for property names ('ja' for Japanese, 'en' for English)
-    
-    Returns:
-        str: Formatted table of properties
-    """
-    descriptions = get_property_descriptions()
-    
-    if format == "json":
-        import json
-        # JSON形式で出力
-        result = {}
-        for prop_name, prop_info in descriptions.items():
-            result[prop_name] = {
-                "name": prop_info[language],
-                "description": prop_info["description"],
-                "module": prop_info["module"]
-            }
-        return json.dumps(result, indent=2, ensure_ascii=False)
-    
-    elif format == "csv":
-        import csv
-        import io
-        # CSV形式で出力
-        output = io.StringIO()
-        fieldnames = ["property_id", "name", "description", "module"]
-        writer = csv.DictWriter(output, fieldnames=fieldnames)
-        writer.writeheader()
-        
-        for prop_name, prop_info in descriptions.items():
-            writer.writerow({
-                "property_id": prop_name,
-                "name": prop_info[language],
-                "description": prop_info["description"],
-                "module": prop_info["module"]
-            })
-        
-        return output.getvalue()
-    
-    elif format == "text":
-        # テキスト形式（単純なリスト）で出力
-        lines = []
-        for prop_name, prop_info in descriptions.items():
-            lines.append(f"{prop_name} ({prop_info[language]}): {prop_info['description']}")
-        return "\n".join(lines)
-    
-    else:  # デフォルト: markdown
-        # Markdown形式でテーブルを出力
-        lines = []
-        lines.append("| プロパティID | 名称 | 説明 | モジュール |" if language == "ja" else 
-                    "| Property ID | Name | Description | Module |")
-        lines.append("|------------|------|------|----------|")
-        
-        for prop_name, prop_info in descriptions.items():
-            lines.append(f"| {prop_name} | {prop_info[language]} | {prop_info['description']} | {prop_info['module']} |")
-        
-        return "\n".join(lines)
-
-
-def get_property_categories() -> Dict[str, List[str]]:
-    """
-    Get molecular properties grouped by categories
-    
-    Returns:
-        Dict: Dictionary with categories as keys and lists of property IDs as values
-    """
-    return {
-        "basic": ["molecular_weight", "exact_mol_wt", "heavy_atom_mol_wt", "formula"],
-        "lipophilicity": ["logp", "mol_mr", "tpsa"],
-        "surface_area": ["labute_asa"],
-        "h_bonds_and_atoms": ["num_h_donors", "num_h_acceptors", "num_rotatable_bonds", "heavy_atom_count", 
-                            "num_hetero_atoms", "no_count", "nhoh_count", "num_valence_electrons"],
-        "rings": ["num_aromatic_rings", "num_aliphatic_rings", "num_saturated_rings",
-                "num_aromatic_carbocycles", "num_aromatic_heterocycles", 
-                "num_aliphatic_carbocycles", "num_aliphatic_heterocycles",
-                "num_saturated_carbocycles", "num_saturated_heterocycles", "ring_count"],
-        "bonds_and_groups": ["num_amide_bonds", "fraction_csp3"],
-        "complexity": ["num_spiro_atoms", "num_bridgehead_atoms", "num_stereo_centers", 
-                     "num_unspecified_stereo_centers"],
-        "graph_indices": ["balaban_j", "bertz_ct", "ipc", "hall_kier_alpha", 
-                        "kappa1", "kappa2", "kappa3", "chi0", "chi1", "chi0v", "chi1v"],
-        "drug_likeness": ["qed"]
-    }
-
-
 def get_available_properties() -> List[str]:
     """
     Get a list of all available property names that can be calculated
@@ -731,422 +333,53 @@ def get_available_properties() -> List[str]:
     return list(descriptions.keys())
 
 
-# Adding Lipinski's Rule of Five check functionality for future expansion
-def check_lipinski_rule(smiles: str) -> Dict[str, bool]:
+def get_feature_descriptions() -> Dict[str, Dict[str, str]]:
     """
-    Check Lipinski's Rule of Five for a SMILES string
-
-    Args:
-        smiles: Molecular structure in SMILES notation
-
+    すべての分子特性（プロパティとフィルター）の説明を取得する
+    
     Returns:
-        Dict: Results for each Lipinski's Rule condition
+        Dict: 分子特性とその説明の辞書
     """
-    rules = {
-        "molecular_weight_ok": False,  # ≤ 500
-        "logp_ok": False,              # ≤ 5
-        "h_donors_ok": False,          # ≤ 5
-        "h_acceptors_ok": False,       # ≤ 10
-        "all_rules_passed": False
-    }
+    # プロパティの説明を取得
+    feature_descriptions = get_property_descriptions()
     
-    if not rdkit_available:
-        logger.error("Cannot check Lipinski's Rule because RDKit is not installed.")
-        return rules
-        
-    try:
-        props = calculate_properties(smiles)
-        
-        rules["molecular_weight_ok"] = props["molecular_weight"] <= 500
-        rules["logp_ok"] = props["logp"] <= 5
-        rules["h_donors_ok"] = props["num_h_donors"] <= 5
-        rules["h_acceptors_ok"] = props["num_h_acceptors"] <= 10
-        
-        # Check if all rules are passed
-        rules["all_rules_passed"] = all([
-            rules["molecular_weight_ok"],
-            rules["logp_ok"],
-            rules["h_donors_ok"],
-            rules["h_acceptors_ok"]
-        ])
-        
-    except Exception as e:
-        logger.error(f"Error occurred during Lipinski's Rule check: {str(e)}")
-        
-    return rules
-
-
-def check_veber_rules(smiles: str) -> Dict[str, bool]:
-    """
-    Check Veber's Rules for oral bioavailability
+    # 元のMOLECULAR_FILTERSの情報を新しい形式で統合
+    for filter_name, filter_info in MOLECULAR_FILTERS.items():
+        # 既存のプロパティ説明と同じ形式に変換
+        feature_descriptions[filter_name] = {
+            "ja": filter_name,  # 日本語名がない場合はキー名をそのまま使用
+            "en": filter_name,  # 英語名がない場合はキー名をそのまま使用
+            "description": filter_info.get("description", ""),
+            "is_filter": True,  # フィルターであることを示すフラグを追加
+            "result_key": filter_info.get("result_key", "")  # フィルター固有の情報を保持
+        }
     
-    Args:
-        smiles: Molecular structure in SMILES notation
-        
-    Returns:
-        Dict: Results for each Veber's Rule condition
-    """
-    rules = {
-        "rotatable_bonds_ok": False,  # ≤ 10
-        "tpsa_ok": False,             # ≤ 140
-        "all_rules_passed": False
-    }
-    
-    if not rdkit_available:
-        logger.error("Cannot check Veber's Rules because RDKit is not installed.")
-        return rules
-    
-    try:
-        # 必要なプロパティを計算
-        props = calculate_selected_properties(smiles, ["num_rotatable_bonds", "tpsa"])
-        
-        rules["rotatable_bonds_ok"] = props.get("num_rotatable_bonds", float('inf')) <= 10
-        rules["tpsa_ok"] = props.get("tpsa", float('inf')) <= 140
-        
-        # 全てのルールをパスしたかチェック
-        rules["all_rules_passed"] = all([
-            rules["rotatable_bonds_ok"],
-            rules["tpsa_ok"]
-        ])
-        
-    except Exception as e:
-        logger.error(f"Error occurred during Veber's Rules check: {str(e)}")
-    
-    return rules
-
-
-def check_ghose_filter(smiles: str) -> Dict[str, bool]:
-    """
-    Check Ghose filter for drug-likeness
-    
-    Args:
-        smiles: Molecular structure in SMILES notation
-        
-    Returns:
-        Dict: Results for each Ghose filter condition
-    """
-    rules = {
-        "molecular_weight_ok": False,  # 160-480
-        "logp_ok": False,              # -0.4-5.6
-        "atom_count_ok": False,        # 20-70 atoms
-        "molar_refractivity_ok": False, # 40-130
-        "all_rules_passed": False
-    }
-    
-    if not rdkit_available:
-        logger.error("Cannot check Ghose filter because RDKit is not installed.")
-        return rules
-    
-    try:
-        # 必要なプロパティを計算
-        props = calculate_selected_properties(smiles, [
-            "molecular_weight", "logp", "heavy_atom_count", "mol_mr"
-        ])
-        
-        mw = props.get("molecular_weight", 0)
-        logp = props.get("logp", 0)
-        atom_count = props.get("heavy_atom_count", 0)
-        mol_mr = props.get("mol_mr", 0)
-        
-        rules["molecular_weight_ok"] = 160 <= mw <= 480
-        rules["logp_ok"] = -0.4 <= logp <= 5.6
-        rules["atom_count_ok"] = 20 <= atom_count <= 70
-        rules["molar_refractivity_ok"] = 40 <= mol_mr <= 130
-        
-        # 全てのルールをパスしたかチェック
-        rules["all_rules_passed"] = all([
-            rules["molecular_weight_ok"],
-            rules["logp_ok"],
-            rules["atom_count_ok"],
-            rules["molar_refractivity_ok"]
-        ])
-        
-    except Exception as e:
-        logger.error(f"Error occurred during Ghose filter check: {str(e)}")
-    
-    return rules
-
-
-def check_pains_filter(smiles: str) -> Dict[str, Any]:
-    """
-    Check if a molecule contains PAINS (Pan Assay Interference Compounds) substructures
-    
-    Args:
-        smiles: Molecular structure in SMILES notation
-        
-    Returns:
-        Dict: Results of PAINS filter check with details about matching patterns
-    """
-    result = {
-        "pains_free": True,        # PAINSアラートパターンがない
-        "num_alerts": 0,           # 検出されたアラート数
-        "matching_alerts": [],     # マッチしたアラートの詳細
-    }
-    
-    if not rdkit_available:
-        logger.error("Cannot check PAINS filter because RDKit is not installed.")
-        return result
-    
-    try:
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            logger.warning(f"Invalid SMILES string: {smiles}")
-            return result
-        
-        # PAINS用のフィルターカタログを作成
-        params = FilterCatalogParams()
-        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_A)
-        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_B)
-        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_C)
-        catalog = FilterCatalog(params)
-        
-        # 分子にPAINSパターンがあるかチェック
-        if catalog.HasMatch(mol):
-            # マッチしたエントリを取得
-            matches = catalog.GetMatches(mol)
-            result["pains_free"] = False
-            result["num_alerts"] = len(matches)
-            
-            # マッチしたアラートの詳細情報を取得
-            for match in matches:
-                match_dict = {
-                    "description": match.GetDescription(),
-                    "smarts": match.GetSmarts() if hasattr(match, "GetSmarts") else None
-                }
-                result["matching_alerts"].append(match_dict)
-                
-    except Exception as e:
-        logger.error(f"Error occurred during PAINS filter check: {str(e)}")
-    
-    return result
-
-
-def check_egan_filter(smiles: str) -> Dict[str, bool]:
-    """
-    Check Egan filter for drug-likeness (good oral absorption)
-    
-    Args:
-        smiles: Molecular structure in SMILES notation
-        
-    Returns:
-        Dict: Results for each Egan filter condition
-    """
-    rules = {
-        "logp_ok": False,         # ≤ 5.88
-        "tpsa_ok": False,         # ≤ 131.6
-        "all_rules_passed": False
-    }
-    
-    if not rdkit_available:
-        logger.error("Cannot check Egan filter because RDKit is not installed.")
-        return rules
-    
-    try:
-        # 必要なプロパティを計算
-        props = calculate_selected_properties(smiles, ["logp", "tpsa"])
-        
-        logp = props.get("logp", float('inf'))
-        tpsa = props.get("tpsa", float('inf'))
-        
-        rules["logp_ok"] = logp <= 5.88
-        rules["tpsa_ok"] = tpsa <= 131.6
-        
-        # 全てのルールをパスしたかチェック
-        rules["all_rules_passed"] = all([
-            rules["logp_ok"],
-            rules["tpsa_ok"]
-        ])
-        
-    except Exception as e:
-        logger.error(f"Error occurred during Egan filter check: {str(e)}")
-    
-    return rules
-
-
-def check_muegge_filter(smiles: str) -> Dict[str, bool]:
-    """
-    Check Muegge filter for drug-likeness
-    
-    Args:
-        smiles: Molecular structure in SMILES notation
-        
-    Returns:
-        Dict: Results for each Muegge filter condition
-    """
-    rules = {
-        "molecular_weight_ok": False,     # 200-600
-        "logp_ok": False,                 # -2-5
-        "tpsa_ok": False,                 # ≤ 150
-        "ring_count_ok": False,           # ≤ 7
-        "h_acceptors_ok": False,          # ≤ 10
-        "h_donors_ok": False,             # ≤ 5
-        "rotatable_bonds_ok": False,      # < 15
-        "all_rules_passed": False
-    }
-    
-    if not rdkit_available:
-        logger.error("Cannot check Muegge filter because RDKit is not installed.")
-        return rules
-    
-    try:
-        # 必要なプロパティを計算
-        props = calculate_selected_properties(smiles, [
-            "molecular_weight", "logp", "tpsa", "ring_count",
-            "num_h_acceptors", "num_h_donors", "num_rotatable_bonds"
-        ])
-        
-        mw = props.get("molecular_weight", 0)
-        logp = props.get("logp", 0)
-        tpsa = props.get("tpsa", float('inf'))
-        ring_count = props.get("ring_count", float('inf'))
-        h_acceptors = props.get("num_h_acceptors", float('inf'))
-        h_donors = props.get("num_h_donors", float('inf'))
-        rotatable_bonds = props.get("num_rotatable_bonds", float('inf'))
-        
-        rules["molecular_weight_ok"] = 200 <= mw <= 600
-        rules["logp_ok"] = -2 <= logp <= 5
-        rules["tpsa_ok"] = tpsa <= 150
-        rules["ring_count_ok"] = ring_count <= 7
-        rules["h_acceptors_ok"] = h_acceptors <= 10
-        rules["h_donors_ok"] = h_donors <= 5
-        rules["rotatable_bonds_ok"] = rotatable_bonds < 15
-        
-        # 全てのルールをパスしたかチェック
-        rules["all_rules_passed"] = all([
-            rules["molecular_weight_ok"],
-            rules["logp_ok"],
-            rules["tpsa_ok"],
-            rules["ring_count_ok"],
-            rules["h_acceptors_ok"],
-            rules["h_donors_ok"],
-            rules["rotatable_bonds_ok"]
-        ])
-        
-    except Exception as e:
-        logger.error(f"Error occurred during Muegge filter check: {str(e)}")
-    
-    return rules
-
-
-def check_all_druglikeness_filters(smiles: str) -> Dict[str, Any]:
-    """
-    Run all available druglikeness filters on a molecule
-    
-    Args:
-        smiles: Molecular structure in SMILES notation
-        
-    Returns:
-        Dict: Results of all drug-likeness filter checks
-    """
-    result = {
-        "lipinski": None,
-        "veber": None,
-        "ghose": None,
-        "egan": None,
-        "muegge": None,
-        "pains": None,
-        "all_filters_passed": False
-    }
-    
-    if not rdkit_available:
-        logger.error("Cannot check drug-likeness filters because RDKit is not installed.")
-        return result
-    
-    try:
-        # すべてのフィルターを実行
-        result["lipinski"] = check_lipinski_rule(smiles)
-        result["veber"] = check_veber_rules(smiles)
-        result["ghose"] = check_ghose_filter(smiles)
-        result["egan"] = check_egan_filter(smiles)
-        result["muegge"] = check_muegge_filter(smiles)
-        result["pains"] = check_pains_filter(smiles)
-        
-        # 全てのフィルターをパスしたかチェック
-        result["all_filters_passed"] = (
-            result["lipinski"]["all_rules_passed"] and
-            result["veber"]["all_rules_passed"] and
-            result["ghose"]["all_rules_passed"] and
-            result["egan"]["all_rules_passed"] and
-            result["muegge"]["all_rules_passed"] and
-            result["pains"]["pains_free"]
-        )
-        
-    except Exception as e:
-        logger.error(f"Error occurred during drug-likeness filter checks: {str(e)}")
-    
-    return result
-
-
-def get_druglikeness_filters_summary(smiles: str) -> Dict[str, bool]:
-    """
-    Get a simple summary of all drug-likeness filters for a molecule
-    
-    Args:
-        smiles: Molecular structure in SMILES notation
-        
-    Returns:
-        Dict: Simple summary of all drug-likeness filters with just pass/fail results
-    """
-    result = {
-        "lipinski_pass": False,
-        "veber_pass": False,
-        "ghose_pass": False,
-        "egan_pass": False, 
-        "muegge_pass": False,
-        "pains_free": False,
-        "all_filters_passed": False
-    }
-    
-    if not rdkit_available:
-        logger.error("Cannot check drug-likeness filters because RDKit is not installed.")
-        return result
-    
-    try:
-        all_results = check_all_druglikeness_filters(smiles)
-        
-        result["lipinski_pass"] = all_results["lipinski"]["all_rules_passed"]
-        result["veber_pass"] = all_results["veber"]["all_rules_passed"]
-        result["ghose_pass"] = all_results["ghose"]["all_rules_passed"]
-        result["egan_pass"] = all_results["egan"]["all_rules_passed"]
-        result["muegge_pass"] = all_results["muegge"]["all_rules_passed"]
-        result["pains_free"] = all_results["pains"]["pains_free"]
-        result["all_filters_passed"] = all_results["all_filters_passed"]
-        
-    except Exception as e:
-        logger.error(f"Error occurred during drug-likeness summary generation: {str(e)}")
-    
-    return result
+    return feature_descriptions
 
 
 # フィルターとその結果キーのマッピング
 MOLECULAR_FILTERS = {
     "lipinski": {
-        "function": check_lipinski_rule,
         "result_key": "all_rules_passed",
         "description": "Lipinski's Rule of Five (MW≤500, LogP≤5, HBD≤5, HBA≤10)"
     },
     "veber": {
-        "function": check_veber_rules,
         "result_key": "all_rules_passed",
         "description": "Veber's rules (TPSA≤140, RotBonds≤10)"
     },
     "ghose": {
-        "function": check_ghose_filter,
         "result_key": "all_rules_passed",
         "description": "Ghose filter (160≤MW≤480, -0.4≤LogP≤5.6, 20≤atoms≤70, 40≤MR≤130)"
     },
     "egan": {
-        "function": check_egan_filter,
         "result_key": "all_rules_passed",
         "description": "Egan filter (LogP≤5.88, TPSA≤131.6)"
     },
     "muegge": {
-        "function": check_muegge_filter,
         "result_key": "all_rules_passed",
         "description": "Muegge filter (200≤MW≤600, -2≤LogP≤5, TPSA≤150, rings≤7, HBA≤10, HBD≤5, RotBonds<15)"
     },
     "pains": {
-        "function": check_pains_filter,
         "result_key": "pains_free",
         "description": "PAINS filter (screens for pan-assay interference compounds)"
     }
@@ -1155,41 +388,20 @@ MOLECULAR_FILTERS = {
 
 def calculate_molecular_features(
     smiles: str, 
-    properties: List[str] = None, 
-    filters: List[str] = None, 
     use_rdkit_mol: bool = False
 ) -> Dict[str, Any]:
     """
-    統合関数: 一度のRDKit処理で物性値計算とフィルター判定を同時に行う
+    分子の全ての物性値とフィルター判定を計算しフラットな辞書で返す統合関数
     
     Args:
         smiles: 分子構造をSMILES表記で
-        properties: 計算する物性値のリスト（例: ["molecular_weight", "logp"]）
-        filters: 適用するフィルターのリスト（例: ["lipinski", "veber"]）
         use_rdkit_mol: Trueの場合、RDKit分子オブジェクトも返す（再利用のため）
     
     Returns:
-        Dict: 計算された物性値とフィルター結果を含む辞書
+        Dict: 計算された全ての物性値とフィルター結果をフラットに含む辞書
     """
-    # 初期値を設定
-    if properties is None:
-        properties = []
-    
-    if filters is None:
-        filters = []
-    
-    # 'all'が指定された場合、全ての物性値を計算
-    if len(properties) == 1 and properties[0].lower() == 'all':
-        properties = get_available_properties()
-    
-    # 'all'が指定された場合、全てのフィルターを適用
-    if 'all' in filters:
-        filters = list(MOLECULAR_FILTERS.keys())
-    
-    # 結果辞書を初期化
+    # 結果辞書を初期化（フラットな構造）
     result = {
-        "properties": {},
-        "filters": {},
         "smiles": smiles
     }
     
@@ -1201,7 +413,7 @@ def calculate_molecular_features(
         return result
     
     try:
-        # SMILES文字列からRDKit分子オブジェクトを作成（一度だけ）
+        # SMILES文字列からRDKit分子オブジェクトを作成
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             logger.warning(f"無効なSMILES文字列です: {smiles}")
@@ -1213,31 +425,203 @@ def calculate_molecular_features(
         if use_rdkit_mol:
             result["mol"] = mol
         
-        # 要求された物性値を計算
-        if properties:
-            all_props = calculate_all_properties(smiles) if properties else {}
-            for prop in properties:
-                if prop in all_props:
-                    result["properties"][prop] = all_props[prop]
+        # 基本的な分子特性
+        result["molecular_weight"] = Descriptors.MolWt(mol)
+        result["exact_mol_wt"] = Descriptors.ExactMolWt(mol)
+        result["heavy_atom_mol_wt"] = Descriptors.HeavyAtomMolWt(mol)
+        result["formula"] = rdMolDescriptors.CalcMolFormula(mol)
         
-        # 要求されたフィルターを適用
-        for filter_name in filters:
-            if filter_name in MOLECULAR_FILTERS:
-                filter_info = MOLECULAR_FILTERS[filter_name]
-                filter_func = filter_info["function"]
-                filter_result = filter_func(smiles)  # フィルター関数を実行
-                
-                # フィルター結果全体を保存
-                result["filters"][filter_name] = filter_result
-                
-                # フィルター判定結果（合否）をトップレベルに追加
-                result_key = filter_info["result_key"]
-                result[f"{filter_name}_pass"] = filter_result[result_key]
+        # 親油性/親水性
+        result["logp"] = Descriptors.MolLogP(mol)
+        result["mol_mr"] = Descriptors.MolMR(mol)
+        result["tpsa"] = Descriptors.TPSA(mol)
         
-        # 全てのフィルターを通過したかの総合判定
-        if filters:
-            all_passed = all(result[f"{f}_pass"] for f in filters)
-            result["all_filters_passed"] = all_passed
+        # 表面積
+        result["labute_asa"] = Descriptors.LabuteASA(mol)
+        
+        # 水素結合と原子数
+        result["num_h_donors"] = Descriptors.NumHDonors(mol)
+        result["num_h_acceptors"] = Descriptors.NumHAcceptors(mol)
+        result["num_rotatable_bonds"] = Descriptors.NumRotatableBonds(mol)
+        result["heavy_atom_count"] = Descriptors.HeavyAtomCount(mol)
+        result["num_hetero_atoms"] = Descriptors.NumHeteroatoms(mol)
+        result["no_count"] = Lipinski.NOCount(mol)
+        result["nhoh_count"] = Lipinski.NHOHCount(mol)
+        result["num_valence_electrons"] = Descriptors.NumValenceElectrons(mol)
+        
+        # 環構造情報
+        result["num_aromatic_rings"] = Descriptors.NumAromaticRings(mol)
+        result["num_aliphatic_rings"] = Descriptors.NumAliphaticRings(mol)
+        result["num_saturated_rings"] = Descriptors.NumSaturatedRings(mol)
+        result["num_aromatic_carbocycles"] = Descriptors.NumAromaticCarbocycles(mol)
+        result["num_aromatic_heterocycles"] = Descriptors.NumAromaticHeterocycles(mol)
+        result["num_aliphatic_carbocycles"] = Descriptors.NumAliphaticCarbocycles(mol)
+        result["num_aliphatic_heterocycles"] = Descriptors.NumAliphaticHeterocycles(mol)
+        result["num_saturated_carbocycles"] = Descriptors.NumSaturatedCarbocycles(mol)
+        result["num_saturated_heterocycles"] = Descriptors.NumSaturatedHeterocycles(mol)
+        result["ring_count"] = Descriptors.RingCount(mol)
+        
+        # 結合/官能基カウント
+        result["num_amide_bonds"] = Descriptors.NumAmideBonds(mol)
+        result["fraction_csp3"] = Descriptors.FractionCSP3(mol)
+        
+        # 分子複雑性
+        result["num_spiro_atoms"] = Descriptors.NumSpiroAtoms(mol)
+        result["num_bridgehead_atoms"] = Descriptors.NumBridgeheadAtoms(mol)
+        result["num_stereo_centers"] = Descriptors.NumAtomStereoCenters(mol)
+        result["num_unspecified_stereo_centers"] = Descriptors.NumUnspecifiedAtomStereoCenters(mol)
+        
+        # 電荷関連の物性値
+        try:
+            AllChem.ComputeGasteigerCharges(mol)
+            charges = [float(atom.GetProp('_GasteigerCharge')) for atom in mol.GetAtoms()]
+            if charges:
+                result["max_partial_charge"] = max(charges)
+                result["min_partial_charge"] = min(charges)
+                abs_charges = [abs(c) for c in charges]
+                result["max_abs_partial_charge"] = max(abs_charges)
+                result["min_abs_partial_charge"] = min(abs_charges)
+        except Exception as e:
+            logger.warning(f"部分電荷の計算に失敗しました: {str(e)}")
+
+        # EState指数
+        try:
+            estate_indices = EState.EStateIndices(mol)
+            if estate_indices:
+                result["max_estate_index"] = max(estate_indices)
+                result["min_estate_index"] = min(estate_indices)
+                abs_estate = [abs(i) for i in estate_indices]
+                result["max_abs_estate_index"] = max(abs_estate)
+                result["min_abs_estate_index"] = min(abs_estate)
+        except Exception as e:
+            logger.warning(f"EState指数の計算に失敗しました: {str(e)}")
+            
+        # グラフ指数
+        try:
+            result["balaban_j"] = GraphDescriptors.BalabanJ(mol)
+            result["bertz_ct"] = GraphDescriptors.BertzCT(mol)
+            result["ipc"] = GraphDescriptors.Ipc(mol)
+            result["hall_kier_alpha"] = GraphDescriptors.HallKierAlpha(mol)
+            result["kappa1"] = GraphDescriptors.Kappa1(mol)
+            result["kappa2"] = GraphDescriptors.Kappa2(mol)
+            result["kappa3"] = GraphDescriptors.Kappa3(mol)
+            result["chi0"] = GraphDescriptors.Chi0(mol)
+            result["chi1"] = GraphDescriptors.Chi1(mol)
+            result["chi0v"] = GraphDescriptors.Chi0v(mol)
+            result["chi1v"] = GraphDescriptors.Chi1v(mol)
+        except Exception as e:
+            logger.warning(f"グラフ指数の計算に失敗しました: {str(e)}")
+
+        # QED薬剤様性
+        try:
+            result["qed"] = QED.qed(mol)
+        except Exception as e:
+            logger.warning(f"QEDの計算に失敗しました: {str(e)}")
+        
+        # フラグメント解析（官能基カウント）
+        for name in dir(Fragments):
+            if name.startswith('fr_'):
+                try:
+                    func = getattr(Fragments, name)
+                    if callable(func):
+                        result[name] = func(mol)
+                except Exception as e:
+                    logger.debug(f"{name}の計算に失敗しました: {str(e)}")
+        
+        # フィルター判定
+        
+        # Lipinski's Rule of Five
+        result["lipinski_molecular_weight_ok"] = result["molecular_weight"] <= 500
+        result["lipinski_logp_ok"] = result["logp"] <= 5
+        result["lipinski_h_donors_ok"] = result["num_h_donors"] <= 5
+        result["lipinski_h_acceptors_ok"] = result["num_h_acceptors"] <= 10
+        result["lipinski_pass"] = (
+            result["lipinski_molecular_weight_ok"] and
+            result["lipinski_logp_ok"] and
+            result["lipinski_h_donors_ok"] and
+            result["lipinski_h_acceptors_ok"]
+        )
+        
+        # Veber's Rules
+        result["veber_rotatable_bonds_ok"] = result["num_rotatable_bonds"] <= 10
+        result["veber_tpsa_ok"] = result["tpsa"] <= 140
+        result["veber_pass"] = result["veber_rotatable_bonds_ok"] and result["veber_tpsa_ok"]
+        
+        # Ghose filter
+        result["ghose_molecular_weight_ok"] = 160 <= result["molecular_weight"] <= 480
+        result["ghose_logp_ok"] = -0.4 <= result["logp"] <= 5.6
+        result["ghose_atom_count_ok"] = 20 <= result["heavy_atom_count"] <= 70
+        result["ghose_molar_refractivity_ok"] = 40 <= result["mol_mr"] <= 130
+        result["ghose_pass"] = (
+            result["ghose_molecular_weight_ok"] and
+            result["ghose_logp_ok"] and
+            result["ghose_atom_count_ok"] and
+            result["ghose_molar_refractivity_ok"]
+        )
+        
+        # Egan filter
+        result["egan_logp_ok"] = result["logp"] <= 5.88
+        result["egan_tpsa_ok"] = result["tpsa"] <= 131.6
+        result["egan_pass"] = result["egan_logp_ok"] and result["egan_tpsa_ok"]
+        
+        # Muegge filter
+        result["muegge_molecular_weight_ok"] = 200 <= result["molecular_weight"] <= 600
+        result["muegge_logp_ok"] = -2 <= result["logp"] <= 5
+        result["muegge_tpsa_ok"] = result["tpsa"] <= 150
+        result["muegge_ring_count_ok"] = result["ring_count"] <= 7
+        result["muegge_h_acceptors_ok"] = result["num_h_acceptors"] <= 10
+        result["muegge_h_donors_ok"] = result["num_h_donors"] <= 5
+        result["muegge_rotatable_bonds_ok"] = result["num_rotatable_bonds"] < 15
+        result["muegge_pass"] = (
+            result["muegge_molecular_weight_ok"] and
+            result["muegge_logp_ok"] and
+            result["muegge_tpsa_ok"] and
+            result["muegge_ring_count_ok"] and
+            result["muegge_h_acceptors_ok"] and
+            result["muegge_h_donors_ok"] and
+            result["muegge_rotatable_bonds_ok"]
+        )
+        
+        # PAINS filter
+        result["pains_free"] = True
+        result["pains_num_alerts"] = 0
+        result["pains_alerts"] = []
+        
+        try:
+            # PAINS用のフィルターカタログを作成
+            params = FilterCatalogParams()
+            params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_A)
+            params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_B)
+            params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_C)
+            catalog = FilterCatalog(params)
+            
+            # 分子にPAINSパターンがあるかチェック
+            if catalog.HasMatch(mol):
+                # マッチしたエントリを取得
+                matches = catalog.GetMatches(mol)
+                result["pains_free"] = False
+                result["pains_num_alerts"] = len(matches)
+                
+                # マッチしたアラートの詳細情報を取得
+                pains_alerts = []
+                for match in matches:
+                    pains_alerts.append({
+                        "description": match.GetDescription(),
+                        "smarts": match.GetSmarts() if hasattr(match, "GetSmarts") else None
+                    })
+                result["pains_alerts"] = pains_alerts
+        except Exception as e:
+            logger.warning(f"PAINSフィルターの適用中にエラーが発生しました: {str(e)}")
+        
+        # 総合判定
+        result["all_filters_passed"] = (
+            result["lipinski_pass"] and
+            result["veber_pass"] and
+            result["ghose_pass"] and
+            result["egan_pass"] and
+            result["muegge_pass"] and
+            result["pains_free"]
+        )
         
     except Exception as e:
         logger.error(f"分子特性の計算中にエラーが発生しました: {str(e)}")

@@ -3,14 +3,11 @@ Module for handling input/output of molecular data
 """
 import io
 import logging
-import csv
-from typing import Any, Dict, List, Optional, Union, Callable
+from typing import Any, Dict, List
 
 import pandas as pd
 
-from .properties import (calculate_properties, calculate_all_properties, 
-                       calculate_selected_properties, calculate_molecular_features,
-                       MOLECULAR_FILTERS)
+from .properties import calculate_molecular_features
 
 # Logger configuration
 logging.basicConfig(
@@ -20,169 +17,163 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def process_csv_data(csv_content: str, smiles_column: Optional[str] = None, 
-                   properties: List[str] = None, filters: List[str] = None) -> Dict[str, Any]:
+def convert_properties_to_markdown(smiles: str, features: Dict[str, Any]) -> str:
     """
-    Calculate molecular properties and apply druglikeness filters from SMILES columns in CSV data and add them as new columns
+    単一分子のプロパティをマークダウン形式に変換する
     
     Args:
-        csv_content: CSV data content to process (text format)
-        smiles_column: Column name containing SMILES structures (if omitted, uses the rightmost column)
-        properties: List of properties to calculate (molecular_weight, logp,
-                   num_h_donors, num_h_acceptors, formula)
-        filters: List of druglikeness filters to apply ('lipinski', 'veber', 'ghose', 
-                 'egan', 'muegge', 'pains', 'all')
-    
+        smiles: 分子のSMILES表記
+        features: フラット形式の分子特性辞書
+        
     Returns:
-        Dict: Processing results
+        str: マークダウン形式の文字列
     """
-    try:
-        # Set default values
-        if properties is None:
-            properties = ["molecular_weight"]
+    md_lines = []
+    
+    # 分子情報のヘッダー
+    md_lines.append(f"## 分子構造情報: {smiles}")
+    md_lines.append("")
+    
+    # 一般的な物性値
+    md_lines.append("### 分子特性")
+    md_lines.append("")
+    md_lines.append("| プロパティ | 値 |")
+    md_lines.append("|-----------|-----|")
+    
+    # フィルター関連のキーを除外
+    for prop, value in sorted(features.items()):
+        # フィルター関連、特殊キーは除外
+        if (not prop.endswith("_pass") and not prop.endswith("_ok") and 
+            prop != "smiles" and prop != "pains_free" and 
+            prop != "all_filters_passed" and prop != "pains_alerts" and
+            prop != "pains_num_alerts" and prop != "error" and prop != "mol"):
             
-        if filters is None:
-            filters = []
-            
-        if not csv_content:
-            return {
-                "error": "No CSV data provided"
-            }
-        
-        # Parse CSV data
-        csv_data = io.StringIO(csv_content)
-        df = pd.read_csv(csv_data)
-        
-        # Identify SMILES column
-        if not smiles_column:
-            smiles_column = df.columns[-1]  # Default is the rightmost column
-            
-        if smiles_column not in df.columns:
-            return {
-                "error": f"Specified SMILES column '{smiles_column}' not found in CSV data"
-            }
-        
-        # Prepare DataFrame for results
-        result_df = df.copy()
-        
-        # 一度のループで各SMILESに対して物性値とフィルターを同時に計算
-        for idx, row in result_df.iterrows():
-            smiles = row[smiles_column]
-            
-            # 統合関数を使って一度にすべての計算を実行
-            features_result = calculate_molecular_features(smiles, properties, filters)
-            
-            # 物性値の結果をDataFrameに追加
-            for prop_name, prop_value in features_result["properties"].items():
-                column_name = prop_name
-                # カラム名が既に存在する場合は名前を変更
-                if prop_name in df.columns and prop_name != smiles_column:
-                    column_name = f"{prop_name}_calculated"
+            # 値の整形（数値の場合は丸める）
+            if isinstance(value, float):
+                formatted_value = f"{value:.3f}"
+            else:
+                formatted_value = str(value) if value is not None else "N/A"
                 
-                # 列が存在しない場合は追加
-                if column_name not in result_df.columns:
-                    result_df[column_name] = None
+            md_lines.append(f"| {prop} | {formatted_value} |")
+    
+    md_lines.append("")
+    
+    # フィルター結果
+    md_lines.append("### ドラッグライクネスフィルター")
+    md_lines.append("")
+    
+    # Lipinski
+    if "lipinski_pass" in features:
+        md_lines.append("#### Lipinski")
+        md_lines.append("")
+        md_lines.append("| 条件 | 結果 |")
+        md_lines.append("|------|------|")
+        for key in ["lipinski_molecular_weight_ok", "lipinski_logp_ok", "lipinski_h_donors_ok", "lipinski_h_acceptors_ok"]:
+            if key in features:
+                result_str = "✓" if features.get(key) else "✗"
+                md_lines.append(f"| {key.replace('lipinski_', '').replace('_ok', '')} | {result_str} |")
+        md_lines.append(f"| **全ルール** | {'✓' if features.get('lipinski_pass') else '✗'} |")
+        md_lines.append("")
+    
+    # 他のフィルター
+    filters = ["veber", "ghose", "egan", "muegge"]
+    for filter_name in filters:
+        pass_key = f"{filter_name}_pass"
+        if pass_key in features:
+            md_lines.append(f"#### {filter_name.capitalize()}")
+            md_lines.append("")
+            md_lines.append("| 条件 | 結果 |")
+            md_lines.append("|------|------|")
+            
+            # フィルター条件を探す
+            filter_keys = [k for k in features.keys() if k.startswith(f"{filter_name}_") and k != pass_key]
+            for key in filter_keys:
+                result_str = "✓" if features.get(key) else "✗"
+                md_lines.append(f"| {key.replace(f'{filter_name}_', '').replace('_ok', '')} | {result_str} |")
                 
-                # 値を設定
-                result_df.at[idx, column_name] = prop_value
-            
-            # フィルター判定結果をDataFrameに追加
-            for filter_name in filters:
-                if filter_name in MOLECULAR_FILTERS:
-                    column_name = f"{filter_name}_pass"
-                    
-                    # 列が存在しない場合は追加
-                    if column_name not in result_df.columns:
-                        result_df[column_name] = None
-                    
-                    # 値を設定（統合関数の結果から直接取得）
-                    if column_name in features_result:
-                        result_df.at[idx, column_name] = features_result[column_name]
-            
-            # 全フィルター通過フラグを追加（フィルターが指定されている場合）
-            if filters and "all_filters_passed" in features_result:
-                if "all_filters_passed" not in result_df.columns:
-                    result_df["all_filters_passed"] = None
-                result_df.at[idx, "all_filters_passed"] = features_result["all_filters_passed"]
+            md_lines.append(f"| **全ルール** | {'✓' if features.get(pass_key) else '✗'} |")
+            md_lines.append("")
+    
+    # PAINSフィルター
+    if "pains_free" in features:
+        md_lines.append("#### PAINS")
+        md_lines.append("")
+        md_lines.append("| 条件 | 結果 |")
+        md_lines.append("|------|------|")
+        md_lines.append(f"| PAINS-free | {'✓' if features.get('pains_free') else '✗'} |")
         
-        # Return results in CSV format
-        output = io.StringIO()
-        result_df.to_csv(output, index=False)
-        csv_result = output.getvalue()
-        
-        # 適用されたフィルター名を取得
-        applied_filters = [f for f in filters if f in MOLECULAR_FILTERS]
-        if 'all' in filters:
-            applied_filters = list(MOLECULAR_FILTERS.keys())
-        
-        return {
-            "result": csv_result,
-            "message": f"Molecular properties and filters applied. Rows processed: {len(result_df)}",
-            "smiles_column": smiles_column,
-            "properties_added": properties,
-            "filters_applied": applied_filters
-        }
-        
-    except Exception as e:
-        logger.exception("Error occurred during processing")
-        return {
-            "error": f"An error occurred: {str(e)}"
-        }
+        if not features.get("pains_free") and "pains_alerts" in features and features["pains_alerts"]:
+            md_lines.append("")
+            md_lines.append("検出されたPAINSパターン:")
+            for alert in features["pains_alerts"]:
+                md_lines.append(f"- {alert.get('description', 'Unknown')}")
+        md_lines.append("")
+    
+    return "\n".join(md_lines)
 
 
-def read_smiles_from_csv(file_path: str, smiles_column: Optional[str] = None) -> List[str]:
+def convert_dataframe_to_markdown(df: pd.DataFrame) -> str:
     """
-    Read a list of SMILES strings from a CSV file
+    DataFrame全体をマークダウンテーブル形式に変換する
     
     Args:
-        file_path: Path to CSV file
-        smiles_column: Column name containing SMILES structures (if omitted, uses the rightmost column)
-    
+        df: 変換するDataFrame
+        
     Returns:
-        List[str]: List of SMILES strings
+        str: マークダウン形式のテーブル
     """
+    # pandas DataFrameのto_markdownメソッドを使用
     try:
-        df = pd.read_csv(file_path)
+        return df.to_markdown(index=False)
+    except AttributeError:
+        # to_markdownが利用できない場合、手動で変換
+        header = "| " + " | ".join(df.columns) + " |"
+        separator = "| " + " | ".join(["---"] * len(df.columns)) + " |"
         
-        # Identify SMILES column
-        if not smiles_column:
-            smiles_column = df.columns[-1]  # Default is the rightmost column
-            
-        if smiles_column not in df.columns:
-            logger.error(f"Specified SMILES column '{smiles_column}' not found in CSV file")
-            return []
-            
-        return df[smiles_column].tolist()
+        rows = []
+        for _, row in df.iterrows():
+            formatted_row = []
+            for value in row:
+                if isinstance(value, float):
+                    formatted_row.append(f"{value:.3f}")
+                else:
+                    formatted_row.append(str(value) if value is not None else "N/A")
+            rows.append("| " + " | ".join(formatted_row) + " |")
         
-    except Exception as e:
-        logger.error(f"Error occurred while reading CSV file: {str(e)}")
-        return []
+        return "\n".join([header, separator] + rows)
 
 
-def write_results_to_csv(file_path: str, data: List[Dict[str, Any]]) -> bool:
+def add_properties_to_dataframe(df: pd.DataFrame, feature_results: List[Dict[str, Any]]) -> None:
     """
-    Write calculation results to a CSV file
+    フラット形式の分子特性計算結果をDataFrameに追加する
     
     Args:
-        file_path: Path to output CSV file
-        data: List of data to write (list of dictionaries)
-    
+        df: 特性を追加するDataFrame
+        feature_results: フラット形式の分子特性計算結果のリスト
+        
     Returns:
-        bool: True if write was successful
+        None: DataFrameは参照で更新
     """
-    try:
-        if not data:
-            logger.warning("No data to write")
-            return False
+    # すべてのキーを取得
+    all_keys = set()
+    for result in feature_results:
+        all_keys.update(result.keys())
+    
+    # 特定のキーを除外（smiles, error, mol など）
+    exclude_keys = {"smiles", "error", "mol", "pains_alerts"}
+    properties = [key for key in all_keys if key not in exclude_keys]
+    
+    # 各プロパティをDataFrameに追加
+    for prop_name in properties:
+        # カラム名が既存のものとぶつかる場合は名前を変更
+        column_name = prop_name
+        if prop_name in df.columns:
+            column_name = f"{prop_name}_calculated"
             
-        # Convert data to DataFrame
-        df = pd.DataFrame(data)
-        
-        # Output to CSV
-        df.to_csv(file_path, index=False)
-        logger.info(f"Data saved to {file_path}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error occurred while writing to CSV file: {str(e)}")
-        return False
+        # 各行の値を取得
+        values = []
+        for result in feature_results:
+            values.append(result.get(prop_name))
+            
+        # DataFrameにカラムを追加
+        df[column_name] = values

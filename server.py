@@ -23,17 +23,9 @@ try:
     from mcp.server.fastmcp import FastMCP
     
     # Import chatMol library
-    from chatmol.properties import (
-        calculate_molecular_weight, calculate_properties, 
-        calculate_all_properties, calculate_selected_properties,
-        get_available_properties, get_properties_table,
-        get_property_descriptions, get_property_categories,
-        check_lipinski_rule, check_veber_rules, check_ghose_filter,
-        check_egan_filter, check_muegge_filter, check_pains_filter,
-        get_druglikeness_filters_summary, check_all_druglikeness_filters,
-        calculate_molecular_features, MOLECULAR_FILTERS
-    )
-    from chatmol.io import process_csv_data
+    from chatmol.properties import calculate_molecular_features, get_available_properties
+    from chatmol.properties import get_property_descriptions, get_feature_descriptions
+    from chatmol.io import convert_properties_to_markdown, convert_dataframe_to_markdown, add_properties_to_dataframe
     
     rdkit_available = True
 except ImportError as e:
@@ -84,195 +76,214 @@ mcp = FastMCP("Molecular Properties Calculator")
 
 
 @mcp.tool()
-def add_molecular_weight(csv_content: str, smiles_column: Optional[str] = None, properties: List[str] = None, filters: List[str] = None) -> Dict[str, Any]:
+def calculate_molecular_properties(
+    input_data: str, 
+    input_type: str = "smiles", 
+    smiles_column: Optional[str] = None, 
+    output_format: str = "csv"
+) -> Dict[str, Any]:
     """
-    Calculate molecular properties and apply druglikeness filters from SMILES columns in CSV data
+    Calculate molecular properties for SMILES strings or CSV data
     
     Args:
-        csv_content: CSV data content to process (text format)
-        smiles_column: Column name containing SMILES structures (if omitted, uses the rightmost column)
-        properties: List of properties to calculate (molecular_weight, logp,
-                   num_h_donors, num_h_acceptors, formula)
-        filters: List of druglikeness filters to apply ('lipinski', 'veber', 'ghose',
-                'egan', 'muegge', 'pains', 'all')
-    
-    Returns:
-        Dict: Processing results
-    """
-    # Use process_csv_data function from chatMol library
-    return process_csv_data(csv_content, smiles_column, properties, filters)
-
-
-@mcp.tool()
-def calculate_molecular_properties(smiles: str, properties: List[str] = None, filters: List[str] = None) -> Dict[str, Any]:
-    """
-    Calculate molecular properties and apply druglikeness filters for a single SMILES string
-    
-    Args:
-        smiles: Molecular structure in SMILES notation
-        properties: List of specific properties to calculate. If None, returns basic properties only.
-                   If ['all'], returns all available properties.
-        filters: List of druglikeness filters to apply ('lipinski', 'veber', 'ghose',
-                'egan', 'muegge', 'pains', 'all'). If None, no filters are applied.
+        input_data: Either a single SMILES string or CSV data content
+        input_type: Type of input data - "smiles" for a single SMILES string or "csv" for CSV data
+        smiles_column: Column name containing SMILES structures (for CSV input, if omitted, uses the rightmost column)
+        output_format: Desired output format - "csv" or "markdown"
     
     Returns:
         Dict: Dictionary containing calculated molecular properties and filter results
     """
     try:
-        if not smiles:
-            return {"error": "No SMILES string provided"}
+        # 入力データが空の場合
+        if not input_data:
+            return {"error": "No input data provided"}
         
-        # プロパティとフィルターを一度の処理で計算
-        if filters or properties:
-            return calculate_molecular_features(smiles, properties, filters)
+        # 単一SMILESの処理
+        if input_type.lower() == "smiles":
+            # 単一SMILESに対して計算
+            features = calculate_molecular_features(input_data)
             
-        # フィルターもプロパティも指定されていない場合は、基本プロパティのみを返す
-        return calculate_properties(smiles)
-        
+            # 出力形式に応じた処理
+            if output_format.lower() == "markdown":
+                try:
+                    # マークダウン形式でプロパティを出力
+                    markdown = convert_properties_to_markdown(input_data, features)
+                    return {
+                        "result_format": "markdown",
+                        "result": markdown
+                    }
+                except Exception as e:
+                    logger.error(f"マークダウン変換中にエラーが発生: {str(e)}")
+                    return {
+                        "result_format": "text",
+                        "result": str(features),
+                        "message": "マークダウン形式での出力に失敗しました。テキスト形式での出力に切り替えます。"
+                    }
+            else:
+                # デフォルトはそのままfeaturesを返す
+                return features
+                
+        # CSV形式の処理        
+        elif input_type.lower() == "csv":
+            import io
+            import pandas as pd
+            import os
+            
+            # ファイルパスかCSVデータか判断して処理
+            if os.path.exists(input_data) and input_data.lower().endswith('.csv'):
+                # ファイルパスとして処理
+                try:
+                    df = pd.read_csv(input_data)
+                    logger.info(f"CSV file loaded successfully from path: {input_data}")
+                except Exception as e:
+                    return {"error": f"Failed to read CSV file from path {input_data}: {str(e)}"}
+            else:
+                # CSVデータ文字列として処理
+                try:
+                    # 改行が\\nのような形式で入っている可能性があるので、実際の改行に変換
+                    formatted_input = input_data.replace('\\n', '\n')
+                    csv_data = io.StringIO(formatted_input)
+                    df = pd.read_csv(csv_data)
+                    logger.info("CSV data parsed successfully from string input")
+                except Exception as e:
+                    return {"error": f"Failed to parse CSV data from string: {str(e)}"}
+                
+            # SMILES列の特定
+            if not smiles_column:
+                smiles_column = df.columns[-1]  # デフォルトは最右列
+                
+            if smiles_column not in df.columns:
+                return {
+                    "error": f"Specified SMILES column '{smiles_column}' not found in CSV data. Available columns: {', '.join(df.columns)}"
+                }
+            
+            # 結果を格納するDataFrame
+            result_df = df.copy()
+            
+            # すべてのSMILESを一括処理
+            smiles_list = result_df[smiles_column].tolist()
+            feature_results = []
+            
+            # 各SMILESに対して特性計算
+            for smiles in smiles_list:
+                if pd.isna(smiles):  # 欠損値チェック
+                    feature_results.append({"error": "Invalid or missing SMILES"})
+                    continue
+                    
+                try:
+                    features = calculate_molecular_features(smiles)
+                    feature_results.append(features)
+                except Exception as e:
+                    feature_results.append({"error": f"Error processing {smiles}: {str(e)}"})
+            
+            # プロパティを結果に追加
+            add_properties_to_dataframe(result_df, feature_results)
+            
+            # 出力形式に応じて結果を返す
+            if output_format.lower() == "markdown":
+                try:
+                    markdown_result = convert_dataframe_to_markdown(result_df)
+                    return {
+                        "result_format": "markdown",
+                        "result": markdown_result,
+                        "message": f"Processed {len(smiles_list)} compounds"
+                    }
+                except Exception as e:
+                    logger.exception("Error converting to markdown format")
+                    # マークダウン変換に失敗した場合は、CSVでフォールバック
+                    output = io.StringIO()
+                    result_df.to_csv(output, index=False)
+                    csv_result = output.getvalue()
+                    
+                    return {
+                        "result_format": "csv",
+                        "result": csv_result,
+                        "message": f"Processed {len(smiles_list)} compounds (マークダウン形式への変換に失敗したため、CSV形式で出力します)"
+                    }
+            else:
+                # CSV形式で出力
+                output = io.StringIO()
+                result_df.to_csv(output, index=False)
+                csv_result = output.getvalue()
+                
+                return {
+                    "result_format": "csv",
+                    "result": csv_result,
+                    "message": f"Processed {len(smiles_list)} compounds"
+                }
+        else:
+            return {"error": f"Unsupported input_type: {input_type}. Use 'smiles' or 'csv'."}
+            
     except Exception as e:
         logger.exception("Error occurred during property calculation")
         return {"error": f"An error occurred: {str(e)}"}
 
 
 @mcp.tool()
-def get_property_list() -> Dict[str, Any]:
+def get_available_features() -> Dict[str, Any]:
     """
-    Get a list of all available molecular properties that can be calculated
+    Get a list of all available molecular features that can be calculated
     
     Returns:
-        Dict: Dictionary containing a list of all available property names
+        Dict: Dictionary containing lists of all available properties and filters
     """
     try:
+        # 利用可能なプロパティの一覧を取得
         properties = get_available_properties()
+        
+        # 新しいget_feature_descriptionsを使用
+        feature_descriptions = get_feature_descriptions()
+        
+        # プロパティとフィルターを分離
+        filters = [name for name, info in feature_descriptions.items() 
+                  if info.get("is_filter", False)]
+        
+        # プロパティの詳細情報を取得
+        property_info = {}
+        for prop in properties:
+            if prop in feature_descriptions:
+                property_info[prop] = {
+                    "name_ja": feature_descriptions[prop].get("ja", ""),
+                    "name_en": feature_descriptions[prop].get("en", ""),
+                    "description": feature_descriptions[prop].get("description", "")
+                }
+            else:
+                property_info[prop] = {
+                    "name_ja": prop,
+                    "name_en": prop,
+                    "description": ""
+                }
+        
+        # フィルターの詳細情報を取得
+        filter_info = {}
+        for filter_name in filters:
+            if filter_name in feature_descriptions:
+                filter_info[filter_name] = {
+                    "description": feature_descriptions[filter_name].get("description", ""),
+                    "result_key": feature_descriptions[filter_name].get("result_key", "")
+                }
+        
         return {
-            "available_properties": properties,
-            "count": len(properties)
-        }
-    except Exception as e:
-        logger.exception("Error occurred while retrieving property list")
-        return {"error": f"An error occurred: {str(e)}"}
-
-
-@mcp.tool()
-def get_properties_info(format: str = "markdown", language: str = "ja", include_categories: bool = False) -> Dict[str, Any]:
-    """
-    Get formatted information about all available molecular properties
-    
-    Args:
-        format: Output format ('markdown', 'csv', 'json', 'text')
-        language: Language for property names ('ja' for Japanese, 'en' for English)
-        include_categories: Whether to include property categories in the result
-        
-    Returns:
-        Dict: Dictionary containing formatted property information
-    """
-    try:
-        # 物性値の説明テーブルを取得
-        properties_table = get_properties_table(format, language)
-        
-        result = {
-            "properties_table": properties_table,
-            "format": format,
-            "language": language
+            "properties": properties,
+            "property_count": len(properties),
+            "property_details": property_info,
+            "filters": filters,
+            "filter_count": len(filters),
+            "filter_details": filter_info,
+            "message": "Available molecular features that can be calculated"
         }
         
-        # カテゴリ情報も要求された場合
-        if include_categories:
-            categories = get_property_categories()
-            result["categories"] = categories
-            
-            # カテゴリ毎の物性値名を日本語/英語で提供
-            if format == "json":
-                property_info = get_property_descriptions()
-                categorized_properties = {}
-                for category, props in categories.items():
-                    categorized_properties[category] = {
-                        "properties": props,
-                        "names": {
-                            prop: {
-                                "ja": property_info[prop]["ja"], 
-                                "en": property_info[prop]["en"]
-                            } for prop in props if prop in property_info
-                        }
-                    }
-                result["categorized_properties"] = categorized_properties
-        
-        return result
-        
     except Exception as e:
-        logger.exception("Error occurred while retrieving property information")
-        return {"error": f"An error occurred: {str(e)}"}
-
-
-@mcp.tool()
-def check_drug_likeness(smiles: str, rules: List[str] = None) -> Dict[str, Any]:
-    """
-    Check if a molecule complies with various drug-likeness rules
-    
-    Args:
-        smiles: Molecular structure in SMILES notation
-        rules: List of rule sets to check. Options: 'lipinski', 'veber', 'ghose', 
-               'egan', 'muegge', 'pains', 'all'. Default is ['lipinski'] if not specified.
-    
-    Returns:
-        Dict: Results for each requested rule check
-    """
-    try:
-        if not smiles:
-            return {"error": "No SMILES string provided"}
-        
-        # デフォルトでLipinski's Rule of Fiveをチェック
-        if rules is None:
-            rules = ["lipinski"]
-            
-        # 全てのルールをチェックするリクエスト
-        if "all" in [r.lower() for r in rules]:
-            # 全てのフィルターを実行
-            full_results = check_all_druglikeness_filters(smiles)
-            # 簡易概要も追加
-            summary = get_druglikeness_filters_summary(smiles)
-            
-            # 分子のSMILESと基本物性を追加
-            full_results["smiles"] = smiles
-            full_results["basic_properties"] = calculate_properties(smiles)
-            full_results["summary"] = summary
-            
-            return full_results
-            
-        result = {}
-            
-        # リクエストに応じて各ルールをチェック
-        for rule in rules:
-            rule_lower = rule.lower()
-            if rule_lower == "lipinski":
-                result["lipinski"] = check_lipinski_rule(smiles)
-            elif rule_lower == "veber":
-                result["veber"] = check_veber_rules(smiles)
-            elif rule_lower == "ghose":
-                result["ghose"] = check_ghose_filter(smiles)
-            elif rule_lower == "egan":
-                result["egan"] = check_egan_filter(smiles)
-            elif rule_lower == "muegge":
-                result["muegge"] = check_muegge_filter(smiles)
-            elif rule_lower == "pains":
-                result["pains"] = check_pains_filter(smiles)
-                
-        # 分子のSMILESと基本物性も返す
-        result["smiles"] = smiles
-        result["basic_properties"] = calculate_properties(smiles)
-            
-        return result
-        
-    except Exception as e:
-        logger.exception("Error occurred during drug-likeness check")
+        logger.exception("Error occurred while retrieving available features")
         return {"error": f"An error occurred: {str(e)}"}
 
 
 if __name__ == "__main__":
     try:
-        # Check if RDKit is available by using the chatMol library function
-        result = calculate_molecular_weight("C")
-        if not isinstance(result, float):
+        # Check if RDKit is available
+        mol_features = calculate_molecular_features("C")
+        if not isinstance(mol_features, dict):
             print("RDKit does not appear to be properly installed", file=sys.stderr)
             sys.exit(1)
             
