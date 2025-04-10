@@ -55,7 +55,7 @@ Claude Desktopの設定ファイルを編集して、このMCPサーバーを追
         "pandas",
         "mcp",
         "run",
-        "/path/to/chatMol/mol-weight.py"
+        "/path/to/chatMol/server.py"
       ]
     }
   }
@@ -64,7 +64,7 @@ Claude Desktopの設定ファイルを編集して、このMCPサーバーを追
 
 注意:
 - `uv` コマンドが環境変数のパスに含まれていない場合は、絶対パス（例：`/path/to/uv`）を使用してください。
-- `/path/to/chatMol/mol-weight.py` の部分は、このスクリプトの絶対パスを指定してください。
+- `/path/to/chatMol/server.py` の部分は、このスクリプトの絶対パスを指定してください。
 - 相対パスは使用せず、必ず絶対パスを使用してください。
 
 ### 2. 使用可能なツール
