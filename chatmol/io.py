@@ -17,13 +17,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def convert_properties_to_markdown(smiles: str, features: Dict[str, Any]) -> str:
+def convert_properties_to_markdown(smiles: str, features: Dict[str, Any], properties_to_show=None) -> str:
     """
     単一分子のプロパティをマークダウン形式に変換する
     
     Args:
         smiles: 分子のSMILES表記
         features: フラット形式の分子特性辞書
+        properties_to_show: 表示するプロパティ名のリスト（Noneの場合は全て表示）
         
     Returns:
         str: マークダウン形式の文字列
@@ -41,6 +42,7 @@ def convert_properties_to_markdown(smiles: str, features: Dict[str, Any]) -> str
     md_lines.append("|-----------|-----|")
     
     # フィルター関連のキーを除外
+    filtered_features = {}
     for prop, value in sorted(features.items()):
         # フィルター関連、特殊キーは除外
         if (not prop.endswith("_pass") and not prop.endswith("_ok") and 
@@ -48,13 +50,19 @@ def convert_properties_to_markdown(smiles: str, features: Dict[str, Any]) -> str
             prop != "all_filters_passed" and prop != "pains_alerts" and
             prop != "pains_num_alerts" and prop != "error" and prop != "mol"):
             
-            # 値の整形（数値の場合は丸める）
-            if isinstance(value, float):
-                formatted_value = f"{value:.3f}"
-            else:
-                formatted_value = str(value) if value is not None else "N/A"
+            # properties_to_showが指定されている場合はフィルタリング
+            if properties_to_show is None or prop in properties_to_show:
+                filtered_features[prop] = value
                 
-            md_lines.append(f"| {prop} | {formatted_value} |")
+    # フィルタリングされたプロパティを表示
+    for prop, value in sorted(filtered_features.items()):
+        # 値の整形（数値の場合は丸める）
+        if isinstance(value, float):
+            formatted_value = f"{value:.3f}"
+        else:
+            formatted_value = str(value) if value is not None else "N/A"
+            
+        md_lines.append(f"| {prop} | {formatted_value} |")
     
     md_lines.append("")
     
@@ -112,26 +120,44 @@ def convert_properties_to_markdown(smiles: str, features: Dict[str, Any]) -> str
     return "\n".join(md_lines)
 
 
-def convert_dataframe_to_markdown(df: pd.DataFrame) -> str:
+def convert_dataframe_to_markdown(df: pd.DataFrame, properties_to_show=None) -> str:
     """
     DataFrame全体をマークダウンテーブル形式に変換する
     
     Args:
         df: 変換するDataFrame
+        properties_to_show: 表示するプロパティ名のリスト（Noneの場合は全て表示）
         
     Returns:
         str: マークダウン形式のテーブル
     """
+    # properties_to_showが指定されている場合、表示する列をフィルタリング
+    if properties_to_show is not None:
+        # 基本列（SMILESや化合物名など）は常に表示するために取得
+        from .properties import get_available_properties
+        all_properties = get_available_properties()
+        
+        # 基本列（記述子でない列）を特定
+        basic_columns = [col for col in df.columns if col not in all_properties]
+        
+        # 表示する記述子列をフィルタリング
+        descriptor_columns = [col for col in df.columns if col in properties_to_show]
+        
+        # 表示する列を結合（基本列 + 指定された記述子）
+        filtered_df = df[basic_columns + descriptor_columns]
+    else:
+        filtered_df = df
+        
     # pandas DataFrameのto_markdownメソッドを使用
     try:
-        return df.to_markdown(index=False)
+        return filtered_df.to_markdown(index=False)
     except AttributeError:
         # to_markdownが利用できない場合、手動で変換
-        header = "| " + " | ".join(df.columns) + " |"
-        separator = "| " + " | ".join(["---"] * len(df.columns)) + " |"
+        header = "| " + " | ".join(filtered_df.columns) + " |"
+        separator = "| " + " | ".join(["---"] * len(filtered_df.columns)) + " |"
         
         rows = []
-        for _, row in df.iterrows():
+        for _, row in filtered_df.iterrows():
             formatted_row = []
             for value in row:
                 if isinstance(value, float):

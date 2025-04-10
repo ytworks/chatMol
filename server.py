@@ -24,7 +24,7 @@ try:
     
     # Import chatMol library
     from chatmol.properties import calculate_molecular_features, get_available_properties
-    from chatmol.properties import get_property_descriptions, get_feature_descriptions
+    from chatmol.properties import get_feature_descriptions
     from chatmol.io import convert_properties_to_markdown, convert_dataframe_to_markdown, add_properties_to_dataframe
     
     rdkit_available = True
@@ -80,7 +80,8 @@ def calculate_molecular_properties(
     input_data: str, 
     input_type: str = "smiles", 
     smiles_column: Optional[str] = None, 
-    output_format: str = "csv"
+    output_format: str = "csv",
+    properties_to_display: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Calculate molecular properties for SMILES strings or CSV data
@@ -90,6 +91,7 @@ def calculate_molecular_properties(
         input_type: Type of input data - "smiles" for a single SMILES string or "csv" for CSV data
         smiles_column: Column name containing SMILES structures (for CSV input, if omitted, uses the rightmost column)
         output_format: Desired output format - "csv" or "markdown"
+        properties_to_display: Comma-separated list of property names to display (only affects markdown output)
     
     Returns:
         Dict: Dictionary containing calculated molecular properties and filter results
@@ -99,6 +101,17 @@ def calculate_molecular_properties(
         if not input_data:
             return {"error": "No input data provided"}
         
+        # properties_to_displayの処理
+        display_props = None
+        if properties_to_display:
+            # カンマ区切りの文字列をリストに変換
+            display_props = [prop.strip() for prop in properties_to_display.split(',')]
+            # 有効なプロパティ名かチェック
+            available_props = get_available_properties()
+            invalid_props = [p for p in display_props if p not in available_props]
+            if invalid_props:
+                return {"error": f"Invalid property names: {', '.join(invalid_props)}"}
+        
         # 単一SMILESの処理
         if input_type.lower() == "smiles":
             # 単一SMILESに対して計算
@@ -107,8 +120,12 @@ def calculate_molecular_properties(
             # 出力形式に応じた処理
             if output_format.lower() == "markdown":
                 try:
-                    # マークダウン形式でプロパティを出力
-                    markdown = convert_properties_to_markdown(input_data, features)
+                    # マークダウン形式でプロパティを出力（表示プロパティ制限）
+                    markdown = convert_properties_to_markdown(
+                        input_data, 
+                        features,
+                        properties_to_show=display_props
+                    )
                     return {
                         "result_format": "markdown",
                         "result": markdown
@@ -183,7 +200,11 @@ def calculate_molecular_properties(
             # 出力形式に応じて結果を返す
             if output_format.lower() == "markdown":
                 try:
-                    markdown_result = convert_dataframe_to_markdown(result_df)
+                    # マークダウン形式で表示プロパティを制限して出力
+                    markdown_result = convert_dataframe_to_markdown(
+                        result_df,
+                        properties_to_show=display_props
+                    )
                     return {
                         "result_format": "markdown",
                         "result": markdown_result,
