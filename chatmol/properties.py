@@ -18,6 +18,7 @@ try:
     from rdkit.Chem import Crippen, MolSurf, rdMolDescriptors, Fragments
     from rdkit.Chem.EState import EState_VSA
     from rdkit.Chem import GraphDescriptors
+    from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
     rdkit_available = True
 except ImportError:
     logger.warning("Unable to import RDKit module. Please verify it is installed on your system.")
@@ -864,3 +865,254 @@ def check_ghose_filter(smiles: str) -> Dict[str, bool]:
         logger.error(f"Error occurred during Ghose filter check: {str(e)}")
     
     return rules
+
+
+def check_pains_filter(smiles: str) -> Dict[str, Any]:
+    """
+    Check if a molecule contains PAINS (Pan Assay Interference Compounds) substructures
+    
+    Args:
+        smiles: Molecular structure in SMILES notation
+        
+    Returns:
+        Dict: Results of PAINS filter check with details about matching patterns
+    """
+    result = {
+        "pains_free": True,        # PAINSアラートパターンがない
+        "num_alerts": 0,           # 検出されたアラート数
+        "matching_alerts": [],     # マッチしたアラートの詳細
+    }
+    
+    if not rdkit_available:
+        logger.error("Cannot check PAINS filter because RDKit is not installed.")
+        return result
+    
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            logger.warning(f"Invalid SMILES string: {smiles}")
+            return result
+        
+        # PAINS用のフィルターカタログを作成
+        params = FilterCatalogParams()
+        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_A)
+        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_B)
+        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_C)
+        catalog = FilterCatalog(params)
+        
+        # 分子にPAINSパターンがあるかチェック
+        if catalog.HasMatch(mol):
+            # マッチしたエントリを取得
+            matches = catalog.GetMatches(mol)
+            result["pains_free"] = False
+            result["num_alerts"] = len(matches)
+            
+            # マッチしたアラートの詳細情報を取得
+            for match in matches:
+                match_dict = {
+                    "description": match.GetDescription(),
+                    "smarts": match.GetSmarts() if hasattr(match, "GetSmarts") else None
+                }
+                result["matching_alerts"].append(match_dict)
+                
+    except Exception as e:
+        logger.error(f"Error occurred during PAINS filter check: {str(e)}")
+    
+    return result
+
+
+def check_egan_filter(smiles: str) -> Dict[str, bool]:
+    """
+    Check Egan filter for drug-likeness (good oral absorption)
+    
+    Args:
+        smiles: Molecular structure in SMILES notation
+        
+    Returns:
+        Dict: Results for each Egan filter condition
+    """
+    rules = {
+        "logp_ok": False,         # ≤ 5.88
+        "tpsa_ok": False,         # ≤ 131.6
+        "all_rules_passed": False
+    }
+    
+    if not rdkit_available:
+        logger.error("Cannot check Egan filter because RDKit is not installed.")
+        return rules
+    
+    try:
+        # 必要なプロパティを計算
+        props = calculate_selected_properties(smiles, ["logp", "tpsa"])
+        
+        logp = props.get("logp", float('inf'))
+        tpsa = props.get("tpsa", float('inf'))
+        
+        rules["logp_ok"] = logp <= 5.88
+        rules["tpsa_ok"] = tpsa <= 131.6
+        
+        # 全てのルールをパスしたかチェック
+        rules["all_rules_passed"] = all([
+            rules["logp_ok"],
+            rules["tpsa_ok"]
+        ])
+        
+    except Exception as e:
+        logger.error(f"Error occurred during Egan filter check: {str(e)}")
+    
+    return rules
+
+
+def check_muegge_filter(smiles: str) -> Dict[str, bool]:
+    """
+    Check Muegge filter for drug-likeness
+    
+    Args:
+        smiles: Molecular structure in SMILES notation
+        
+    Returns:
+        Dict: Results for each Muegge filter condition
+    """
+    rules = {
+        "molecular_weight_ok": False,     # 200-600
+        "logp_ok": False,                 # -2-5
+        "tpsa_ok": False,                 # ≤ 150
+        "ring_count_ok": False,           # ≤ 7
+        "h_acceptors_ok": False,          # ≤ 10
+        "h_donors_ok": False,             # ≤ 5
+        "rotatable_bonds_ok": False,      # < 15
+        "all_rules_passed": False
+    }
+    
+    if not rdkit_available:
+        logger.error("Cannot check Muegge filter because RDKit is not installed.")
+        return rules
+    
+    try:
+        # 必要なプロパティを計算
+        props = calculate_selected_properties(smiles, [
+            "molecular_weight", "logp", "tpsa", "ring_count",
+            "num_h_acceptors", "num_h_donors", "num_rotatable_bonds"
+        ])
+        
+        mw = props.get("molecular_weight", 0)
+        logp = props.get("logp", 0)
+        tpsa = props.get("tpsa", float('inf'))
+        ring_count = props.get("ring_count", float('inf'))
+        h_acceptors = props.get("num_h_acceptors", float('inf'))
+        h_donors = props.get("num_h_donors", float('inf'))
+        rotatable_bonds = props.get("num_rotatable_bonds", float('inf'))
+        
+        rules["molecular_weight_ok"] = 200 <= mw <= 600
+        rules["logp_ok"] = -2 <= logp <= 5
+        rules["tpsa_ok"] = tpsa <= 150
+        rules["ring_count_ok"] = ring_count <= 7
+        rules["h_acceptors_ok"] = h_acceptors <= 10
+        rules["h_donors_ok"] = h_donors <= 5
+        rules["rotatable_bonds_ok"] = rotatable_bonds < 15
+        
+        # 全てのルールをパスしたかチェック
+        rules["all_rules_passed"] = all([
+            rules["molecular_weight_ok"],
+            rules["logp_ok"],
+            rules["tpsa_ok"],
+            rules["ring_count_ok"],
+            rules["h_acceptors_ok"],
+            rules["h_donors_ok"],
+            rules["rotatable_bonds_ok"]
+        ])
+        
+    except Exception as e:
+        logger.error(f"Error occurred during Muegge filter check: {str(e)}")
+    
+    return rules
+
+
+def check_all_druglikeness_filters(smiles: str) -> Dict[str, Any]:
+    """
+    Run all available druglikeness filters on a molecule
+    
+    Args:
+        smiles: Molecular structure in SMILES notation
+        
+    Returns:
+        Dict: Results of all drug-likeness filter checks
+    """
+    result = {
+        "lipinski": None,
+        "veber": None,
+        "ghose": None,
+        "egan": None,
+        "muegge": None,
+        "pains": None,
+        "all_filters_passed": False
+    }
+    
+    if not rdkit_available:
+        logger.error("Cannot check drug-likeness filters because RDKit is not installed.")
+        return result
+    
+    try:
+        # すべてのフィルターを実行
+        result["lipinski"] = check_lipinski_rule(smiles)
+        result["veber"] = check_veber_rules(smiles)
+        result["ghose"] = check_ghose_filter(smiles)
+        result["egan"] = check_egan_filter(smiles)
+        result["muegge"] = check_muegge_filter(smiles)
+        result["pains"] = check_pains_filter(smiles)
+        
+        # 全てのフィルターをパスしたかチェック
+        result["all_filters_passed"] = (
+            result["lipinski"]["all_rules_passed"] and
+            result["veber"]["all_rules_passed"] and
+            result["ghose"]["all_rules_passed"] and
+            result["egan"]["all_rules_passed"] and
+            result["muegge"]["all_rules_passed"] and
+            result["pains"]["pains_free"]
+        )
+        
+    except Exception as e:
+        logger.error(f"Error occurred during drug-likeness filter checks: {str(e)}")
+    
+    return result
+
+
+def get_druglikeness_filters_summary(smiles: str) -> Dict[str, bool]:
+    """
+    Get a simple summary of all drug-likeness filters for a molecule
+    
+    Args:
+        smiles: Molecular structure in SMILES notation
+        
+    Returns:
+        Dict: Simple summary of all drug-likeness filters with just pass/fail results
+    """
+    result = {
+        "lipinski_pass": False,
+        "veber_pass": False,
+        "ghose_pass": False,
+        "egan_pass": False, 
+        "muegge_pass": False,
+        "pains_free": False,
+        "all_filters_passed": False
+    }
+    
+    if not rdkit_available:
+        logger.error("Cannot check drug-likeness filters because RDKit is not installed.")
+        return result
+    
+    try:
+        all_results = check_all_druglikeness_filters(smiles)
+        
+        result["lipinski_pass"] = all_results["lipinski"]["all_rules_passed"]
+        result["veber_pass"] = all_results["veber"]["all_rules_passed"]
+        result["ghose_pass"] = all_results["ghose"]["all_rules_passed"]
+        result["egan_pass"] = all_results["egan"]["all_rules_passed"]
+        result["muegge_pass"] = all_results["muegge"]["all_rules_passed"]
+        result["pains_free"] = all_results["pains"]["pains_free"]
+        result["all_filters_passed"] = all_results["all_filters_passed"]
+        
+    except Exception as e:
+        logger.error(f"Error occurred during drug-likeness summary generation: {str(e)}")
+    
+    return result

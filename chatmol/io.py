@@ -4,11 +4,13 @@ Module for handling input/output of molecular data
 import io
 import logging
 import csv
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Callable
 
 import pandas as pd
 
-from .properties import calculate_properties
+from .properties import (calculate_properties, check_lipinski_rule, check_veber_rules,
+                         check_ghose_filter, check_egan_filter, check_muegge_filter,
+                         check_pains_filter, get_druglikeness_filters_summary)
 
 # Logger configuration
 logging.basicConfig(
@@ -17,17 +19,52 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ドラッグライクネスフィルター関数と列名のマッピング
+DRUGLIKENESS_FILTERS = {
+    "lipinski": {
+        "function": check_lipinski_rule,
+        "result_key": "all_rules_passed",
+        "column_name": "lipinski_pass"
+    },
+    "veber": {
+        "function": check_veber_rules,
+        "result_key": "all_rules_passed",
+        "column_name": "veber_pass"
+    },
+    "ghose": {
+        "function": check_ghose_filter,
+        "result_key": "all_rules_passed",
+        "column_name": "ghose_pass"
+    },
+    "egan": {
+        "function": check_egan_filter,
+        "result_key": "all_rules_passed",
+        "column_name": "egan_pass"
+    },
+    "muegge": {
+        "function": check_muegge_filter,
+        "result_key": "all_rules_passed",
+        "column_name": "muegge_pass"
+    },
+    "pains": {
+        "function": check_pains_filter,
+        "result_key": "pains_free",
+        "column_name": "pains_free"
+    }
+}
 
 def process_csv_data(csv_content: str, smiles_column: Optional[str] = None, 
-                   properties: List[str] = None) -> Dict[str, Any]:
+                   properties: List[str] = None, filters: List[str] = None) -> Dict[str, Any]:
     """
-    Calculate molecular properties from SMILES columns in CSV data and add them as new columns
+    Calculate molecular properties and apply druglikeness filters from SMILES columns in CSV data and add them as new columns
     
     Args:
         csv_content: CSV data content to process (text format)
         smiles_column: Column name containing SMILES structures (if omitted, uses the rightmost column)
         properties: List of properties to calculate (molecular_weight, logp,
                    num_h_donors, num_h_acceptors, formula)
+        filters: List of druglikeness filters to apply ('lipinski', 'veber', 'ghose', 
+                 'egan', 'muegge', 'pains', 'all')
     
     Returns:
         Dict: Processing results
@@ -36,6 +73,9 @@ def process_csv_data(csv_content: str, smiles_column: Optional[str] = None,
         # Set default values
         if properties is None:
             properties = ["molecular_weight"]
+            
+        if filters is None:
+            filters = []
             
         if not csv_content:
             return {
@@ -58,24 +98,50 @@ def process_csv_data(csv_content: str, smiles_column: Optional[str] = None,
         # Prepare DataFrame for results
         result_df = df.copy()
         
+        # 'all'フィルターが指定された場合、すべてのフィルターを適用
+        if 'all' in filters:
+            filters = list(DRUGLIKENESS_FILTERS.keys())
+        
         # Initialize the property columns
         for prop in properties:
             result_df[prop] = None
+            
+        # Initialize the filter result columns
+        applied_filters = []
+        for filter_name in filters:
+            if filter_name in DRUGLIKENESS_FILTERS:
+                column_name = DRUGLIKENESS_FILTERS[filter_name]["column_name"]
+                result_df[column_name] = None
+                applied_filters.append(filter_name)
         
-        # Calculate and add specified properties
+        # Calculate properties and apply filters for each SMILES
         for idx, row in result_df.iterrows():
             smiles = row[smiles_column]
-            props = calculate_properties(smiles)
             
-            # Add only requested properties
-            for prop_name in properties:
-                if prop_name in props:
-                    column_name = prop_name
-                    # Rename column if it already exists
-                    if prop_name in df.columns and prop_name != smiles_column:
-                        column_name = f"{prop_name}_calculated"
-                    
-                    result_df.at[idx, column_name] = props[prop_name]
+            # Calculate and add requested properties
+            if properties:
+                props = calculate_properties(smiles)
+                for prop_name in properties:
+                    if prop_name in props:
+                        column_name = prop_name
+                        # Rename column if it already exists
+                        if prop_name in df.columns and prop_name != smiles_column:
+                            column_name = f"{prop_name}_calculated"
+                        
+                        result_df.at[idx, column_name] = props[prop_name]
+            
+            # Apply requested filters
+            for filter_name in applied_filters:
+                filter_info = DRUGLIKENESS_FILTERS[filter_name]
+                filter_func = filter_info["function"]
+                result_key = filter_info["result_key"]
+                column_name = filter_info["column_name"]
+                
+                # フィルター関数を実行し、結果を取得
+                filter_result = filter_func(smiles)
+                
+                # ブール値結果を取り出して、DataFrame列に追加
+                result_df.at[idx, column_name] = filter_result[result_key]
         
         # Return results in CSV format
         output = io.StringIO()
@@ -84,9 +150,10 @@ def process_csv_data(csv_content: str, smiles_column: Optional[str] = None,
         
         return {
             "result": csv_result,
-            "message": f"Molecular property calculation completed. Rows processed: {len(result_df)}",
+            "message": f"Molecular properties and filters applied. Rows processed: {len(result_df)}",
             "smiles_column": smiles_column,
-            "properties_added": properties
+            "properties_added": properties,
+            "filters_applied": applied_filters
         }
         
     except Exception as e:

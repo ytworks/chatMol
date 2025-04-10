@@ -28,9 +28,11 @@ try:
         calculate_all_properties, calculate_selected_properties,
         get_available_properties, get_properties_table,
         get_property_descriptions, get_property_categories,
-        check_lipinski_rule, check_veber_rules, check_ghose_filter
+        check_lipinski_rule, check_veber_rules, check_ghose_filter,
+        check_egan_filter, check_muegge_filter, check_pains_filter,
+        get_druglikeness_filters_summary, check_all_druglikeness_filters
     )
-    from chatmol.io import process_csv_data
+    from chatmol.io import process_csv_data, DRUGLIKENESS_FILTERS
     
     rdkit_available = True
 except ImportError as e:
@@ -81,21 +83,23 @@ mcp = FastMCP("Molecular Properties Calculator")
 
 
 @mcp.tool()
-def add_molecular_weight(csv_content: str, smiles_column: Optional[str] = None, properties: List[str] = None) -> Dict[str, Any]:
+def add_molecular_weight(csv_content: str, smiles_column: Optional[str] = None, properties: List[str] = None, filters: List[str] = None) -> Dict[str, Any]:
     """
-    Calculate molecular properties from SMILES columns in CSV data and add them as new columns
+    Calculate molecular properties and apply druglikeness filters from SMILES columns in CSV data
     
     Args:
         csv_content: CSV data content to process (text format)
         smiles_column: Column name containing SMILES structures (if omitted, uses the rightmost column)
         properties: List of properties to calculate (molecular_weight, logp,
                    num_h_donors, num_h_acceptors, formula)
+        filters: List of druglikeness filters to apply ('lipinski', 'veber', 'ghose',
+                'egan', 'muegge', 'pains', 'all')
     
     Returns:
         Dict: Processing results
     """
     # Use process_csv_data function from chatMol library
-    return process_csv_data(csv_content, smiles_column, properties)
+    return process_csv_data(csv_content, smiles_column, properties, filters)
 
 
 @mcp.tool()
@@ -208,8 +212,8 @@ def check_drug_likeness(smiles: str, rules: List[str] = None) -> Dict[str, Any]:
     
     Args:
         smiles: Molecular structure in SMILES notation
-        rules: List of rule sets to check. Options: 'lipinski', 'veber', 'ghose', 'all'.
-               Default is ['lipinski'] if not specified.
+        rules: List of rule sets to check. Options: 'lipinski', 'veber', 'ghose', 
+               'egan', 'muegge', 'pains', 'all'. Default is ['lipinski'] if not specified.
     
     Returns:
         Dict: Results for each requested rule check
@@ -224,7 +228,17 @@ def check_drug_likeness(smiles: str, rules: List[str] = None) -> Dict[str, Any]:
             
         # 全てのルールをチェックするリクエスト
         if "all" in [r.lower() for r in rules]:
-            rules = ["lipinski", "veber", "ghose"]
+            # 全てのフィルターを実行
+            full_results = check_all_druglikeness_filters(smiles)
+            # 簡易概要も追加
+            summary = get_druglikeness_filters_summary(smiles)
+            
+            # 分子のSMILESと基本物性を追加
+            full_results["smiles"] = smiles
+            full_results["basic_properties"] = calculate_properties(smiles)
+            full_results["summary"] = summary
+            
+            return full_results
             
         result = {}
             
@@ -237,6 +251,12 @@ def check_drug_likeness(smiles: str, rules: List[str] = None) -> Dict[str, Any]:
                 result["veber"] = check_veber_rules(smiles)
             elif rule_lower == "ghose":
                 result["ghose"] = check_ghose_filter(smiles)
+            elif rule_lower == "egan":
+                result["egan"] = check_egan_filter(smiles)
+            elif rule_lower == "muegge":
+                result["muegge"] = check_muegge_filter(smiles)
+            elif rule_lower == "pains":
+                result["pains"] = check_pains_filter(smiles)
                 
         # 分子のSMILESと基本物性も返す
         result["smiles"] = smiles
