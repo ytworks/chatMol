@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-MCP server for molecular weight calculation
+MCP server for molecular properties calculation
 """
 import csv
 import io
@@ -93,34 +93,34 @@ def calculate_molecular_properties(
         Dict: Dictionary containing calculated molecular properties
     """
     try:
-        # 入力データが空の場合
+        # If input data is empty
         if not input_data:
             return {"error": "No input data provided"}
         
-        # 単一SMILESの処理
+        # Processing single SMILES
         if input_type.lower() == "smiles":
-            # 単一SMILESに対して計算して直接返す
+            # Calculate and return directly for a single SMILES
             features = calculate_molecular_features(input_data)
             return features
                 
-        # CSV形式の処理        
+        # Processing CSV format        
         elif input_type.lower() == "csv":
             import io
             import pandas as pd
             import os
             
-            # ファイルパスかCSVデータか判断して処理
+            # Determine if input is file path or CSV data and process accordingly
             if os.path.exists(input_data) and input_data.lower().endswith('.csv'):
-                # ファイルパスとして処理
+                # Process as file path
                 try:
                     df = pd.read_csv(input_data)
                     logger.info(f"CSV file loaded successfully from path: {input_data}")
                 except Exception as e:
                     return {"error": f"Failed to read CSV file from path {input_data}: {str(e)}"}
             else:
-                # CSVデータ文字列として処理
+                # Process as CSV data string
                 try:
-                    # 改行が\\nのような形式で入っている可能性があるので、実際の改行に変換
+                    # Convert potential string line breaks (\\n) to actual line breaks
                     formatted_input = input_data.replace('\\n', '\n')
                     csv_data = io.StringIO(formatted_input)
                     df = pd.read_csv(csv_data)
@@ -128,25 +128,25 @@ def calculate_molecular_properties(
                 except Exception as e:
                     return {"error": f"Failed to parse CSV data from string: {str(e)}"}
                 
-            # SMILES列の特定
+            # Identify SMILES column
             if not smiles_column:
-                smiles_column = df.columns[-1]  # デフォルトは最右列
+                smiles_column = df.columns[-1]  # Default is rightmost column
                 
             if smiles_column not in df.columns:
                 return {
                     "error": f"Specified SMILES column '{smiles_column}' not found in CSV data. Available columns: {', '.join(df.columns)}"
                 }
             
-            # 結果を格納するDataFrame
+            # DataFrame to store results
             result_df = df.copy()
             
-            # すべてのSMILESを一括処理
+            # Process all SMILES at once
             smiles_list = result_df[smiles_column].tolist()
             feature_results = []
             
-            # 各SMILESに対して特性計算
+            # Calculate properties for each SMILES
             for smiles in smiles_list:
-                if pd.isna(smiles):  # 欠損値チェック
+                if pd.isna(smiles):  # Check for missing values
                     feature_results.append({"error": "Invalid or missing SMILES"})
                     continue
                     
@@ -156,10 +156,10 @@ def calculate_molecular_properties(
                 except Exception as e:
                     feature_results.append({"error": f"Error processing {smiles}: {str(e)}"})
             
-            # プロパティを結果に追加
+            # Add properties to results
             add_properties_to_dataframe(result_df, feature_results)
             
-            # CSV形式で出力
+            # Output in CSV format
             output = io.StringIO()
             result_df.to_csv(output, index=False)
             csv_result = output.getvalue()
@@ -186,17 +186,17 @@ def get_available_features() -> Dict[str, Any]:
         Dict: Dictionary containing lists of all available properties and filters
     """
     try:
-        # 利用可能なプロパティの一覧を取得
+        # Get list of available properties
         properties = get_available_properties()
         
-        # 新しいget_feature_descriptionsを使用
+        # Use new get_feature_descriptions
         feature_descriptions = get_feature_descriptions()
         
-        # プロパティとフィルターを分離
+        # Separate properties and filters
         filters = [name for name, info in feature_descriptions.items() 
                   if info.get("is_filter", False)]
         
-        # プロパティの詳細情報を取得
+        # Get detailed information for properties
         property_info = {}
         for prop in properties:
             if prop in feature_descriptions:
@@ -212,7 +212,7 @@ def get_available_features() -> Dict[str, Any]:
                     "description": ""
                 }
         
-        # フィルターの詳細情報を取得
+        # Get detailed information for filters
         filter_info = {}
         for filter_name in filters:
             if filter_name in feature_descriptions:

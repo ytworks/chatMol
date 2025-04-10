@@ -19,35 +19,35 @@ logger = logging.getLogger(__name__)
 
 def add_properties_to_dataframe(df: pd.DataFrame, feature_results: List[Dict[str, Any]]) -> None:
     """
-    フラット形式の分子特性計算結果をDataFrameに追加する
+    Add molecular property calculation results in flat format to a DataFrame
     
     Args:
-        df: 特性を追加するDataFrame
-        feature_results: フラット形式の分子特性計算結果のリスト
+        df: DataFrame to add properties to
+        feature_results: List of molecular property calculation results in flat format
         
     Returns:
-        None: DataFrameは参照で更新
+        None: DataFrame is updated by reference
     """
-    # すべてのキーを取得
+    # Get all keys
     all_keys = set()
     for result in feature_results:
         all_keys.update(result.keys())
     
-    # 特定のキーを除外（smiles, error, mol など）
+    # Exclude specific keys (smiles, error, mol, etc.)
     exclude_keys = {"smiles", "error", "mol", "pains_alerts"}
     properties = [key for key in all_keys if key not in exclude_keys]
     
-    # 各プロパティをDataFrameに追加
+    # Add each property to the DataFrame
     for prop_name in properties:
-        # カラム名が既存のものとぶつかる場合は名前を変更
+        # Change column name if it conflicts with an existing one
         column_name = prop_name
         if prop_name in df.columns:
             column_name = f"{prop_name}_calculated"
             
-        # 各行の値を取得
+        # Get values for each row
         values = []
         for result in feature_results:
             values.append(result.get(prop_name))
             
-        # DataFrameにカラムを追加
+        # Add column to DataFrame
         df[column_name] = values
