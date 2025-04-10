@@ -102,40 +102,48 @@ def process_csv_data(csv_content: str, smiles_column: Optional[str] = None,
         if 'all' in filters:
             filters = list(DRUGLIKENESS_FILTERS.keys())
         
-        # Initialize the property columns
-        for prop in properties:
-            result_df[prop] = None
-            
-        # Initialize the filter result columns
+        # 適用するフィルターの情報を整理
         applied_filters = []
+        filter_configs = []
         for filter_name in filters:
             if filter_name in DRUGLIKENESS_FILTERS:
-                column_name = DRUGLIKENESS_FILTERS[filter_name]["column_name"]
+                filter_info = DRUGLIKENESS_FILTERS[filter_name]
+                column_name = filter_info["column_name"]
                 result_df[column_name] = None
                 applied_filters.append(filter_name)
+                filter_configs.append({
+                    "name": filter_name,
+                    "function": filter_info["function"],
+                    "result_key": filter_info["result_key"],
+                    "column_name": column_name
+                })
         
-        # Calculate properties and apply filters for each SMILES
+        # 計算するプロパティのカラムを初期化
+        property_columns = {}
+        for prop in properties:
+            column_name = prop
+            # カラム名が既に存在する場合は名前を変更
+            if prop in df.columns and prop != smiles_column:
+                column_name = f"{prop}_calculated"
+            result_df[column_name] = None
+            property_columns[prop] = column_name
+        
+        # 一度のループで各SMILESに対してプロパティとフィルターを計算
         for idx, row in result_df.iterrows():
             smiles = row[smiles_column]
             
-            # Calculate and add requested properties
+            # プロパティを計算（必要な場合のみ）
             if properties:
                 props = calculate_properties(smiles)
-                for prop_name in properties:
+                for prop_name, column_name in property_columns.items():
                     if prop_name in props:
-                        column_name = prop_name
-                        # Rename column if it already exists
-                        if prop_name in df.columns and prop_name != smiles_column:
-                            column_name = f"{prop_name}_calculated"
-                        
                         result_df.at[idx, column_name] = props[prop_name]
             
-            # Apply requested filters
-            for filter_name in applied_filters:
-                filter_info = DRUGLIKENESS_FILTERS[filter_name]
-                filter_func = filter_info["function"]
-                result_key = filter_info["result_key"]
-                column_name = filter_info["column_name"]
+            # フィルターを適用（必要な場合のみ）
+            for config in filter_configs:
+                filter_func = config["function"]
+                result_key = config["result_key"]
+                column_name = config["column_name"]
                 
                 # フィルター関数を実行し、結果を取得
                 filter_result = filter_func(smiles)
