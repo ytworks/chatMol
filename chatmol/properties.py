@@ -226,49 +226,12 @@ def get_property_descriptions() -> Dict[str, Dict[str, str]]:
         },
         
         # Bond/functional group counts
-        "num_amide_bonds": {
-            "ja": "アミド結合数",
-            "en": "#Amide Bonds",
-            "description_ja": "分子中のアミド結合（–C(=O)N–結合）の数。",
-            "description_en": "Number of amide bonds (-C(=O)N- bonds) in the molecule.",
-            "module": "Descriptors.NumAmideBonds"
-        },
         "fraction_csp3": {
             "ja": "炭素sp³割合",
             "en": "Fraction of C sp³",
             "description_ja": "炭素原子のうちsp³混成状態にあるものの割合。値域0〜1で、分子の飽和度を示す指標。",
             "description_en": "Fraction of carbon atoms in sp³ hybridization state. Range 0-1, an indicator of molecular saturation degree.",
             "module": "Descriptors.FractionCSP3"
-        },
-        
-        # Molecular complexity
-        "num_spiro_atoms": {
-            "ja": "スピロ原子数",
-            "en": "#Spiro Atoms",
-            "description_ja": "スピロ原子の数。2つの環が1つの原子を共有して融合した構造（スピロ環）における共有原子の個数。",
-            "description_en": "Number of spiro atoms. Count of shared atoms in structures where two rings are fused by sharing a single atom (spiro rings).",
-            "module": "Descriptors.NumSpiroAtoms"
-        },
-        "num_bridgehead_atoms": {
-            "ja": "ブリッジヘッド原子数",
-            "en": "#Bridgehead Atoms",
-            "description_ja": "ブリッジヘッド原子の数。複数の環が少なくとも2つの結合を共有して融合した構造（ブリッジヘッド）における共有原子の個数。",
-            "description_en": "Number of bridgehead atoms. Count of shared atoms in structures where multiple rings are fused by sharing at least two bonds (bridgehead structures).",
-            "module": "Descriptors.NumBridgeheadAtoms"
-        },
-        "num_stereo_centers": {
-            "ja": "立体中心数",
-            "en": "#Stereo Centers",
-            "description_ja": "分子内の立体中心（キラル中心）となっている原子の数。明確に(R/S等)指定された立体中心の個数。",
-            "description_en": "Number of stereogenic centers (chiral centers) in the molecule. Count of atoms with clearly specified (R/S, etc.) stereochemistry.",
-            "module": "Descriptors.NumAtomStereoCenters"
-        },
-        "num_unspecified_stereo_centers": {
-            "ja": "未指定立体中心数",
-            "en": "#Unspecified Stereo Centers",
-            "description_ja": "分子内の立体中心のうち立体配置が未定義のものの数（立体化学が指定されていないキラル原子の個数）。",
-            "description_en": "Number of stereogenic centers with undefined stereochemistry (count of chiral atoms without specified stereochemistry).",
-            "module": "Descriptors.NumUnspecifiedAtomStereoCenters"
         },
         
         # Graph indices
@@ -475,8 +438,8 @@ def calculate_molecular_features(
             result["mol"] = None
         return result
     
+    # Create RDKit molecule object from SMILES string
     try:
-        # Create RDKit molecule object from SMILES string
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             logger.warning(f"Invalid SMILES string: {smiles}")
@@ -487,206 +450,263 @@ def calculate_molecular_features(
         # Save molecule object (optional)
         if use_rdkit_mol:
             result["mol"] = mol
-        
-        # Basic molecular properties
-        result["molecular_weight"] = Descriptors.MolWt(mol)
-        result["exact_mol_wt"] = Descriptors.ExactMolWt(mol)
-        result["heavy_atom_mol_wt"] = Descriptors.HeavyAtomMolWt(mol)
-        result["formula"] = rdMolDescriptors.CalcMolFormula(mol)
-        
-        # Lipophilicity/Hydrophilicity
-        result["logp"] = Descriptors.MolLogP(mol)
-        result["mol_mr"] = Descriptors.MolMR(mol)
-        result["tpsa"] = Descriptors.TPSA(mol)
-        
-        # Surface area
-        result["labute_asa"] = Descriptors.LabuteASA(mol)
-        
-        # H-bonds and atom counts
-        result["num_h_donors"] = Descriptors.NumHDonors(mol)
-        result["num_h_acceptors"] = Descriptors.NumHAcceptors(mol)
-        result["num_rotatable_bonds"] = Descriptors.NumRotatableBonds(mol)
-        result["heavy_atom_count"] = Descriptors.HeavyAtomCount(mol)
-        result["num_hetero_atoms"] = Descriptors.NumHeteroatoms(mol)
-        result["no_count"] = Lipinski.NOCount(mol)
-        result["nhoh_count"] = Lipinski.NHOHCount(mol)
-        result["num_valence_electrons"] = Descriptors.NumValenceElectrons(mol)
-        
-        # Ring information
-        result["num_aromatic_rings"] = Descriptors.NumAromaticRings(mol)
-        result["num_aliphatic_rings"] = Descriptors.NumAliphaticRings(mol)
-        result["num_saturated_rings"] = Descriptors.NumSaturatedRings(mol)
-        result["num_aromatic_carbocycles"] = Descriptors.NumAromaticCarbocycles(mol)
-        result["num_aromatic_heterocycles"] = Descriptors.NumAromaticHeterocycles(mol)
-        result["num_aliphatic_carbocycles"] = Descriptors.NumAliphaticCarbocycles(mol)
-        result["num_aliphatic_heterocycles"] = Descriptors.NumAliphaticHeterocycles(mol)
-        result["num_saturated_carbocycles"] = Descriptors.NumSaturatedCarbocycles(mol)
-        result["num_saturated_heterocycles"] = Descriptors.NumSaturatedHeterocycles(mol)
-        result["ring_count"] = Descriptors.RingCount(mol)
-        
-        # Bond/functional group counts
-        result["num_amide_bonds"] = Descriptors.NumAmideBonds(mol)
-        result["fraction_csp3"] = Descriptors.FractionCSP3(mol)
-        
-        # Molecular complexity
-        result["num_spiro_atoms"] = Descriptors.NumSpiroAtoms(mol)
-        result["num_bridgehead_atoms"] = Descriptors.NumBridgeheadAtoms(mol)
-        result["num_stereo_centers"] = Descriptors.NumAtomStereoCenters(mol)
-        result["num_unspecified_stereo_centers"] = Descriptors.NumUnspecifiedAtomStereoCenters(mol)
-        
-        # Charge-related properties
-        try:
-            AllChem.ComputeGasteigerCharges(mol)
-            charges = [float(atom.GetProp('_GasteigerCharge')) for atom in mol.GetAtoms()]
-            if charges:
-                result["max_partial_charge"] = max(charges)
-                result["min_partial_charge"] = min(charges)
-                abs_charges = [abs(c) for c in charges]
-                result["max_abs_partial_charge"] = max(abs_charges)
-                result["min_abs_partial_charge"] = min(abs_charges)
-        except Exception as e:
-            logger.warning(f"Failed to calculate partial charges: {str(e)}")
-
-        # EState indices
-        try:
-            estate_indices = EState.EStateIndices(mol)
-            if estate_indices:
-                result["max_estate_index"] = max(estate_indices)
-                result["min_estate_index"] = min(estate_indices)
-                abs_estate = [abs(i) for i in estate_indices]
-                result["max_abs_estate_index"] = max(abs_estate)
-                result["min_abs_estate_index"] = min(abs_estate)
-        except Exception as e:
-            logger.warning(f"Failed to calculate EState indices: {str(e)}")
             
-        # Graph indices
-        try:
-            result["balaban_j"] = GraphDescriptors.BalabanJ(mol)
-            result["bertz_ct"] = GraphDescriptors.BertzCT(mol)
-            result["ipc"] = GraphDescriptors.Ipc(mol)
-            result["hall_kier_alpha"] = GraphDescriptors.HallKierAlpha(mol)
-            result["kappa1"] = GraphDescriptors.Kappa1(mol)
-            result["kappa2"] = GraphDescriptors.Kappa2(mol)
-            result["kappa3"] = GraphDescriptors.Kappa3(mol)
-            result["chi0"] = GraphDescriptors.Chi0(mol)
-            result["chi1"] = GraphDescriptors.Chi1(mol)
-            result["chi0v"] = GraphDescriptors.Chi0v(mol)
-            result["chi1v"] = GraphDescriptors.Chi1v(mol)
-        except Exception as e:
-            logger.warning(f"Failed to calculate graph indices: {str(e)}")
-
-        # QED drug-likeness
-        try:
-            result["qed"] = QED.qed(mol)
-        except Exception as e:
-            logger.warning(f"Failed to calculate QED: {str(e)}")
-        
-        # Fragment analysis (functional group counts)
-        for name in dir(Fragments):
-            if name.startswith('fr_'):
-                try:
-                    func = getattr(Fragments, name)
-                    if callable(func):
-                        result[name] = func(mol)
-                except Exception as e:
-                    logger.debug(f"Failed to calculate {name}: {str(e)}")
-        
-        # Filter evaluations
-        
-        # Lipinski's Rule of Five
-        result["lipinski_molecular_weight_ok"] = result["molecular_weight"] <= 500
-        result["lipinski_logp_ok"] = result["logp"] <= 5
-        result["lipinski_h_donors_ok"] = result["num_h_donors"] <= 5
-        result["lipinski_h_acceptors_ok"] = result["num_h_acceptors"] <= 10
-        result["lipinski_pass"] = (
-            result["lipinski_molecular_weight_ok"] and
-            result["lipinski_logp_ok"] and
-            result["lipinski_h_donors_ok"] and
-            result["lipinski_h_acceptors_ok"]
-        )
-        
-        # Veber's Rules
-        result["veber_rotatable_bonds_ok"] = result["num_rotatable_bonds"] <= 10
-        result["veber_tpsa_ok"] = result["tpsa"] <= 140
-        result["veber_pass"] = result["veber_rotatable_bonds_ok"] and result["veber_tpsa_ok"]
-        
-        # Ghose filter
-        result["ghose_molecular_weight_ok"] = 160 <= result["molecular_weight"] <= 480
-        result["ghose_logp_ok"] = -0.4 <= result["logp"] <= 5.6
-        result["ghose_atom_count_ok"] = 20 <= result["heavy_atom_count"] <= 70
-        result["ghose_molar_refractivity_ok"] = 40 <= result["mol_mr"] <= 130
-        result["ghose_pass"] = (
-            result["ghose_molecular_weight_ok"] and
-            result["ghose_logp_ok"] and
-            result["ghose_atom_count_ok"] and
-            result["ghose_molar_refractivity_ok"]
-        )
-        
-        # Egan filter
-        result["egan_logp_ok"] = result["logp"] <= 5.88
-        result["egan_tpsa_ok"] = result["tpsa"] <= 131.6
-        result["egan_pass"] = result["egan_logp_ok"] and result["egan_tpsa_ok"]
-        
-        # Muegge filter
-        result["muegge_molecular_weight_ok"] = 200 <= result["molecular_weight"] <= 600
-        result["muegge_logp_ok"] = -2 <= result["logp"] <= 5
-        result["muegge_tpsa_ok"] = result["tpsa"] <= 150
-        result["muegge_ring_count_ok"] = result["ring_count"] <= 7
-        result["muegge_h_acceptors_ok"] = result["num_h_acceptors"] <= 10
-        result["muegge_h_donors_ok"] = result["num_h_donors"] <= 5
-        result["muegge_rotatable_bonds_ok"] = result["num_rotatable_bonds"] < 15
-        result["muegge_pass"] = (
-            result["muegge_molecular_weight_ok"] and
-            result["muegge_logp_ok"] and
-            result["muegge_tpsa_ok"] and
-            result["muegge_ring_count_ok"] and
-            result["muegge_h_acceptors_ok"] and
-            result["muegge_h_donors_ok"] and
-            result["muegge_rotatable_bonds_ok"]
-        )
-        
-        # PAINS filter
-        result["pains_free"] = True
-        result["pains_num_alerts"] = 0
-        result["pains_alerts"] = []
-        
-        try:
-            # Create filter catalog for PAINS
-            params = FilterCatalogParams()
-            params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_A)
-            params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_B)
-            params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_C)
-            catalog = FilterCatalog(params)
-            
-            # Check if the molecule has PAINS patterns
-            if catalog.HasMatch(mol):
-                # Get matched entries
-                matches = catalog.GetMatches(mol)
-                result["pains_free"] = False
-                result["pains_num_alerts"] = len(matches)
-                
-                # Get detailed information for matched alerts
-                pains_alerts = []
-                for match in matches:
-                    pains_alerts.append({
-                        "description": match.GetDescription(),
-                        "smarts": match.GetSmarts() if hasattr(match, "GetSmarts") else None
-                    })
-                result["pains_alerts"] = pains_alerts
-        except Exception as e:
-            logger.warning(f"Error occurred while applying PAINS filter: {str(e)}")
-        
-        # Overall evaluation
-        result["all_filters_passed"] = (
-            result["lipinski_pass"] and
-            result["veber_pass"] and
-            result["ghose_pass"] and
-            result["egan_pass"] and
-            result["muegge_pass"] and
-            result["pains_free"]
-        )
-        
     except Exception as e:
-        logger.error(f"Error occurred while calculating molecular properties: {str(e)}")
+        logger.error(f"Error creating molecule from SMILES: {str(e)}")
+        if use_rdkit_mol:
+            result["mol"] = None
+        return result
+
+    # Dictionary of basic molecular properties to calculate
+    basic_properties = {
+        "molecular_weight": {"func": Descriptors.MolWt, "args": [mol]},
+        "exact_mol_wt": {"func": Descriptors.ExactMolWt, "args": [mol]},
+        "heavy_atom_mol_wt": {"func": Descriptors.HeavyAtomMolWt, "args": [mol]},
+        "formula": {"func": rdMolDescriptors.CalcMolFormula, "args": [mol]},
+        "logp": {"func": Descriptors.MolLogP, "args": [mol]},
+        "mol_mr": {"func": Descriptors.MolMR, "args": [mol]},
+        "tpsa": {"func": Descriptors.TPSA, "args": [mol]},
+        "labute_asa": {"func": Descriptors.LabuteASA, "args": [mol]},
+        "num_h_donors": {"func": Descriptors.NumHDonors, "args": [mol]},
+        "num_h_acceptors": {"func": Descriptors.NumHAcceptors, "args": [mol]},
+        "num_rotatable_bonds": {"func": Descriptors.NumRotatableBonds, "args": [mol]},
+        "heavy_atom_count": {"func": Descriptors.HeavyAtomCount, "args": [mol]},
+        "num_hetero_atoms": {"func": Descriptors.NumHeteroatoms, "args": [mol]},
+        "no_count": {"func": Lipinski.NOCount, "args": [mol]},
+        "nhoh_count": {"func": Lipinski.NHOHCount, "args": [mol]},
+        "num_valence_electrons": {"func": Descriptors.NumValenceElectrons, "args": [mol]},
+        "num_aromatic_rings": {"func": Descriptors.NumAromaticRings, "args": [mol]},
+        "num_aliphatic_rings": {"func": Descriptors.NumAliphaticRings, "args": [mol]},
+        "num_saturated_rings": {"func": Descriptors.NumSaturatedRings, "args": [mol]},
+        "num_aromatic_carbocycles": {"func": Descriptors.NumAromaticCarbocycles, "args": [mol]},
+        "num_aromatic_heterocycles": {"func": Descriptors.NumAromaticHeterocycles, "args": [mol]},
+        "num_aliphatic_carbocycles": {"func": Descriptors.NumAliphaticCarbocycles, "args": [mol]},
+        "num_aliphatic_heterocycles": {"func": Descriptors.NumAliphaticHeterocycles, "args": [mol]},
+        "num_saturated_carbocycles": {"func": Descriptors.NumSaturatedCarbocycles, "args": [mol]},
+        "num_saturated_heterocycles": {"func": Descriptors.NumSaturatedHeterocycles, "args": [mol]},
+        "ring_count": {"func": Descriptors.RingCount, "args": [mol]},
+        "fraction_csp3": {"func": Descriptors.FractionCSP3, "args": [mol]},
+    }
+
+    # Calculate basic properties
+    for prop_name, prop_config in basic_properties.items():
+        try:
+            result[prop_name] = prop_config["func"](*prop_config["args"])
+        except Exception as e:
+            logger.warning(f"Failed to calculate {prop_name}: {str(e)}")
+            result[prop_name] = None
+
+    # Dictionary of graph-related indices
+    graph_indices = {
+        "balaban_j": {"func": GraphDescriptors.BalabanJ, "args": [mol]},
+        "bertz_ct": {"func": GraphDescriptors.BertzCT, "args": [mol]},
+        "ipc": {"func": GraphDescriptors.Ipc, "args": [mol]},
+        "hall_kier_alpha": {"func": GraphDescriptors.HallKierAlpha, "args": [mol]},
+        "kappa1": {"func": GraphDescriptors.Kappa1, "args": [mol]},
+        "kappa2": {"func": GraphDescriptors.Kappa2, "args": [mol]},
+        "kappa3": {"func": GraphDescriptors.Kappa3, "args": [mol]},
+        "chi0": {"func": GraphDescriptors.Chi0, "args": [mol]},
+        "chi1": {"func": GraphDescriptors.Chi1, "args": [mol]},
+        "chi0v": {"func": GraphDescriptors.Chi0v, "args": [mol]},
+        "chi1v": {"func": GraphDescriptors.Chi1v, "args": [mol]},
+    }
+
+    # Calculate graph indices
+    for prop_name, prop_config in graph_indices.items():
+        try:
+            result[prop_name] = prop_config["func"](*prop_config["args"])
+        except Exception as e:
+            logger.warning(f"Failed to calculate {prop_name}: {str(e)}")
+            result[prop_name] = None
+
+    # Calculate QED drug-likeness
+    try:
+        result["qed"] = QED.qed(mol)
+    except Exception as e:
+        logger.warning(f"Failed to calculate QED: {str(e)}")
+        result["qed"] = None
+
+    # Calculate partial charges
+    try:
+        AllChem.ComputeGasteigerCharges(mol)
+        charges = [float(atom.GetProp('_GasteigerCharge')) for atom in mol.GetAtoms()]
+        if charges:
+            charge_properties = {
+                "max_partial_charge": max(charges),
+                "min_partial_charge": min(charges),
+                "max_abs_partial_charge": max([abs(c) for c in charges]),
+                "min_abs_partial_charge": min([abs(c) for c in charges])
+            }
+            for prop_name, value in charge_properties.items():
+                result[prop_name] = value
+    except Exception as e:
+        logger.warning(f"Failed to calculate partial charges: {str(e)}")
+        for prop_name in ["max_partial_charge", "min_partial_charge", "max_abs_partial_charge", "min_abs_partial_charge"]:
+            result[prop_name] = None
+
+    # Calculate EState indices
+    try:
+        estate_indices = EState.EStateIndices(mol)
+        if estate_indices:
+            estate_properties = {
+                "max_estate_index": max(estate_indices),
+                "min_estate_index": min(estate_indices),
+                "max_abs_estate_index": max([abs(i) for i in estate_indices]),
+                "min_abs_estate_index": min([abs(i) for i in estate_indices])
+            }
+            for prop_name, value in estate_properties.items():
+                result[prop_name] = value
+    except Exception as e:
+        logger.warning(f"Failed to calculate EState indices: {str(e)}")
+        for prop_name in ["max_estate_index", "min_estate_index", "max_abs_estate_index", "min_abs_estate_index"]:
+            result[prop_name] = None
+
+    # Calculate fragment analysis (functional group counts)
+    for name in dir(Fragments):
+        if name.startswith('fr_'):
+            try:
+                func = getattr(Fragments, name)
+                if callable(func):
+                    result[name] = func(mol)
+            except Exception as e:
+                logger.debug(f"Failed to calculate {name}: {str(e)}")
+                result[name] = None
+
+    # Calculate filter evaluations
+
+    # Dictionary to store filter-related properties
+    filter_properties = {}
+
+    # Lipinski's Rule of Five
+    try:
+        filter_properties["lipinski_molecular_weight_ok"] = result["molecular_weight"] <= 500
+        filter_properties["lipinski_logp_ok"] = result["logp"] <= 5
+        filter_properties["lipinski_h_donors_ok"] = result["num_h_donors"] <= 5
+        filter_properties["lipinski_h_acceptors_ok"] = result["num_h_acceptors"] <= 10
+        filter_properties["lipinski_pass"] = (
+            filter_properties["lipinski_molecular_weight_ok"] and
+            filter_properties["lipinski_logp_ok"] and
+            filter_properties["lipinski_h_donors_ok"] and
+            filter_properties["lipinski_h_acceptors_ok"]
+        )
+    except Exception as e:
+        logger.warning(f"Failed to calculate Lipinski's Rule of Five: {str(e)}")
+        for prop in ["lipinski_molecular_weight_ok", "lipinski_logp_ok", "lipinski_h_donors_ok", 
+                     "lipinski_h_acceptors_ok", "lipinski_pass"]:
+            filter_properties[prop] = None
+
+    # Veber's Rules
+    try:
+        filter_properties["veber_rotatable_bonds_ok"] = result["num_rotatable_bonds"] <= 10
+        filter_properties["veber_tpsa_ok"] = result["tpsa"] <= 140
+        filter_properties["veber_pass"] = filter_properties["veber_rotatable_bonds_ok"] and filter_properties["veber_tpsa_ok"]
+    except Exception as e:
+        logger.warning(f"Failed to calculate Veber's Rules: {str(e)}")
+        for prop in ["veber_rotatable_bonds_ok", "veber_tpsa_ok", "veber_pass"]:
+            filter_properties[prop] = None
+
+    # Ghose filter
+    try:
+        filter_properties["ghose_molecular_weight_ok"] = 160 <= result["molecular_weight"] <= 480
+        filter_properties["ghose_logp_ok"] = -0.4 <= result["logp"] <= 5.6
+        filter_properties["ghose_atom_count_ok"] = 20 <= result["heavy_atom_count"] <= 70
+        filter_properties["ghose_molar_refractivity_ok"] = 40 <= result["mol_mr"] <= 130
+        filter_properties["ghose_pass"] = (
+            filter_properties["ghose_molecular_weight_ok"] and
+            filter_properties["ghose_logp_ok"] and
+            filter_properties["ghose_atom_count_ok"] and
+            filter_properties["ghose_molar_refractivity_ok"]
+        )
+    except Exception as e:
+        logger.warning(f"Failed to calculate Ghose filter: {str(e)}")
+        for prop in ["ghose_molecular_weight_ok", "ghose_logp_ok", "ghose_atom_count_ok", 
+                     "ghose_molar_refractivity_ok", "ghose_pass"]:
+            filter_properties[prop] = None
+
+    # Egan filter
+    try:
+        filter_properties["egan_logp_ok"] = result["logp"] <= 5.88
+        filter_properties["egan_tpsa_ok"] = result["tpsa"] <= 131.6
+        filter_properties["egan_pass"] = filter_properties["egan_logp_ok"] and filter_properties["egan_tpsa_ok"]
+    except Exception as e:
+        logger.warning(f"Failed to calculate Egan filter: {str(e)}")
+        for prop in ["egan_logp_ok", "egan_tpsa_ok", "egan_pass"]:
+            filter_properties[prop] = None
+
+    # Muegge filter
+    try:
+        filter_properties["muegge_molecular_weight_ok"] = 200 <= result["molecular_weight"] <= 600
+        filter_properties["muegge_logp_ok"] = -2 <= result["logp"] <= 5
+        filter_properties["muegge_tpsa_ok"] = result["tpsa"] <= 150
+        filter_properties["muegge_ring_count_ok"] = result["ring_count"] <= 7
+        filter_properties["muegge_h_acceptors_ok"] = result["num_h_acceptors"] <= 10
+        filter_properties["muegge_h_donors_ok"] = result["num_h_donors"] <= 5
+        filter_properties["muegge_rotatable_bonds_ok"] = result["num_rotatable_bonds"] < 15
+        filter_properties["muegge_pass"] = (
+            filter_properties["muegge_molecular_weight_ok"] and
+            filter_properties["muegge_logp_ok"] and
+            filter_properties["muegge_tpsa_ok"] and
+            filter_properties["muegge_ring_count_ok"] and
+            filter_properties["muegge_h_acceptors_ok"] and
+            filter_properties["muegge_h_donors_ok"] and
+            filter_properties["muegge_rotatable_bonds_ok"]
+        )
+    except Exception as e:
+        logger.warning(f"Failed to calculate Muegge filter: {str(e)}")
+        for prop in ["muegge_molecular_weight_ok", "muegge_logp_ok", "muegge_tpsa_ok", "muegge_ring_count_ok",
+                     "muegge_h_acceptors_ok", "muegge_h_donors_ok", "muegge_rotatable_bonds_ok", "muegge_pass"]:
+            filter_properties[prop] = None
+
+    # PAINS filter
+    filter_properties["pains_free"] = True
+    filter_properties["pains_num_alerts"] = 0
+    filter_properties["pains_alerts"] = []
+    
+    try:
+        # Create filter catalog for PAINS
+        params = FilterCatalogParams()
+        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_A)
+        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_B)
+        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_C)
+        catalog = FilterCatalog(params)
+        
+        # Check if the molecule has PAINS patterns
+        if catalog.HasMatch(mol):
+            # Get matched entries
+            matches = catalog.GetMatches(mol)
+            filter_properties["pains_free"] = False
+            filter_properties["pains_num_alerts"] = len(matches)
+            
+            # Get detailed information for matched alerts
+            pains_alerts = []
+            for match in matches:
+                pains_alerts.append({
+                    "description": match.GetDescription(),
+                    "smarts": match.GetSmarts() if hasattr(match, "GetSmarts") else None
+                })
+            filter_properties["pains_alerts"] = pains_alerts
+    except Exception as e:
+        logger.warning(f"Error occurred while applying PAINS filter: {str(e)}")
+        filter_properties["pains_free"] = None
+        filter_properties["pains_num_alerts"] = None
+        filter_properties["pains_alerts"] = []
+
+    # Overall filter evaluation
+    try:
+        all_passes = []
+        for pass_filter in ["lipinski_pass", "veber_pass", "ghose_pass", "egan_pass", "muegge_pass"]:
+            if filter_properties.get(pass_filter) is not None:
+                all_passes.append(filter_properties[pass_filter])
+        
+        if all_passes and filter_properties.get("pains_free") is not None:
+            filter_properties["all_filters_passed"] = all(all_passes) and filter_properties["pains_free"]
+        else:
+            filter_properties["all_filters_passed"] = None
+    except Exception as e:
+        logger.warning(f"Failed to calculate overall filter evaluation: {str(e)}")
+        filter_properties["all_filters_passed"] = None
+
+    # Add filter properties to result
+    result.update(filter_properties)
     
     return result
