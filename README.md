@@ -67,86 +67,86 @@ The test suite includes:
 ChatMol can calculate the following molecular descriptors:
 
 ### Basic Properties
-| Property | Description |
-|----------|-------------|
-| `molecular_weight` | Average molecular weight based on average atomic masses of elements |
-| `exact_mol_wt` | Exact molecular weight considering isotopic composition (monoisotopic mass) |
-| `heavy_atom_mol_wt` | Molecular weight ignoring hydrogens |
-| `formula` | Chemical formula of the molecule |
+| Property            | Description                                                                 |
+| ------------------- | --------------------------------------------------------------------------- |
+| `molecular_weight`  | Average molecular weight based on average atomic masses of elements         |
+| `exact_mol_wt`      | Exact molecular weight considering isotopic composition (monoisotopic mass) |
+| `heavy_atom_mol_wt` | Molecular weight ignoring hydrogens                                         |
+| `formula`           | Chemical formula of the molecule                                            |
 
 ### Lipophilicity/Hydrophilicity
-| Property | Description |
-|----------|-------------|
-| `logp` | Partition coefficient LogP (1-octanol/water), estimated by Wildman-Crippen method |
-| `mol_mr` | Molar refractivity, related to molecular polarizability |
-| `tpsa` | Topological Polar Surface Area, sum of polar atom surface areas |
+| Property | Description                                                                       |
+| -------- | --------------------------------------------------------------------------------- |
+| `logp`   | Partition coefficient LogP (1-octanol/water), estimated by Wildman-Crippen method |
+| `mol_mr` | Molar refractivity, related to molecular polarizability                           |
+| `tpsa`   | Topological Polar Surface Area, sum of polar atom surface areas                   |
 
 ### Surface Properties
-| Property | Description |
-|----------|-------------|
+| Property     | Description                       |
+| ------------ | --------------------------------- |
 | `labute_asa` | Labute's Approximate Surface Area |
 
 ### Hydrogen Bonding and Atom Counts
-| Property | Description |
-|----------|-------------|
-| `num_h_donors` | Number of hydrogen bond donors |
-| `num_h_acceptors` | Number of hydrogen bond acceptors |
-| `num_rotatable_bonds` | Number of rotatable bonds |
-| `heavy_atom_count` | Number of heavy (non-hydrogen) atoms |
-| `num_hetero_atoms` | Number of heteroatoms (non-carbon) |
-| `no_count` | Number of nitrogen and oxygen atoms |
-| `nhoh_count` | Number of NH and OH groups |
-| `num_valence_electrons` | Total number of valence electrons |
+| Property                | Description                          |
+| ----------------------- | ------------------------------------ |
+| `num_h_donors`          | Number of hydrogen bond donors       |
+| `num_h_acceptors`       | Number of hydrogen bond acceptors    |
+| `num_rotatable_bonds`   | Number of rotatable bonds            |
+| `heavy_atom_count`      | Number of heavy (non-hydrogen) atoms |
+| `num_hetero_atoms`      | Number of heteroatoms (non-carbon)   |
+| `no_count`              | Number of nitrogen and oxygen atoms  |
+| `nhoh_count`            | Number of NH and OH groups           |
+| `num_valence_electrons` | Total number of valence electrons    |
 
 ### Ring Information
-| Property | Description |
-|----------|-------------|
-| `num_aromatic_rings` | Number of aromatic rings |
-| `num_aliphatic_rings` | Number of aliphatic rings |
-| `num_saturated_rings` | Number of saturated rings |
-| `num_aromatic_carbocycles` | Number of aromatic rings where all atoms are carbon |
-| `num_aromatic_heterocycles` | Number of aromatic rings containing heteroatoms |
-| `num_aliphatic_carbocycles` | Number of aliphatic rings consisting only of carbon atoms |
-| `num_aliphatic_heterocycles` | Number of aliphatic rings containing heteroatoms |
-| `num_saturated_carbocycles` | Number of saturated carbon rings |
-| `num_saturated_heterocycles` | Number of saturated heterocyclic rings |
-| `ring_count` | Total number of ring structures |
+| Property                     | Description                                               |
+| ---------------------------- | --------------------------------------------------------- |
+| `num_aromatic_rings`         | Number of aromatic rings                                  |
+| `num_aliphatic_rings`        | Number of aliphatic rings                                 |
+| `num_saturated_rings`        | Number of saturated rings                                 |
+| `num_aromatic_carbocycles`   | Number of aromatic rings where all atoms are carbon       |
+| `num_aromatic_heterocycles`  | Number of aromatic rings containing heteroatoms           |
+| `num_aliphatic_carbocycles`  | Number of aliphatic rings consisting only of carbon atoms |
+| `num_aliphatic_heterocycles` | Number of aliphatic rings containing heteroatoms          |
+| `num_saturated_carbocycles`  | Number of saturated carbon rings                          |
+| `num_saturated_heterocycles` | Number of saturated heterocyclic rings                    |
+| `ring_count`                 | Total number of ring structures                           |
 
 ### Bond Information
-| Property | Description |
-|----------|-------------|
+| Property        | Description                                   |
+| --------------- | --------------------------------------------- |
 | `fraction_csp3` | Fraction of carbon atoms in sp³ hybridization |
 
 ### Graph Indices
-| Property | Description |
-|----------|-------------|
-| `balaban_j` | Balaban's molecular connectivity index J |
-| `bertz_ct` | Bertz complexity index for molecular structure |
-| `ipc` | Information content descriptor of the molecular graph |
-| `hall_kier_alpha` | Hall-Kier alpha parameter for molecular correction |
-| `kappa1` | Kappa shape index 1 (degree of molecular branching) |
-| `kappa2` | Kappa shape index 2 (spatial extent, planar) |
-| `kappa3` | Kappa shape index 3 (spatial extent, three-dimensional) |
-| `chi0` | Molecular connectivity index (zeroth-order) |
-| `chi1` | Molecular connectivity index (first-order) |
-| `chi0v` | Molecular connectivity index considering valence (zeroth-order) |
-| `chi1v` | Molecular connectivity index considering valence (first-order) |
+| Property          | Description                                                     |
+| ----------------- | --------------------------------------------------------------- |
+| `balaban_j`       | Balaban's molecular connectivity index J                        |
+| `bertz_ct`        | Bertz complexity index for molecular structure                  |
+| `ipc`             | Information content descriptor of the molecular graph           |
+| `hall_kier_alpha` | Hall-Kier alpha parameter for molecular correction              |
+| `kappa1`          | Kappa shape index 1 (degree of molecular branching)             |
+| `kappa2`          | Kappa shape index 2 (spatial extent, planar)                    |
+| `kappa3`          | Kappa shape index 3 (spatial extent, three-dimensional)         |
+| `chi0`            | Molecular connectivity index (zeroth-order)                     |
+| `chi1`            | Molecular connectivity index (first-order)                      |
+| `chi0v`           | Molecular connectivity index considering valence (zeroth-order) |
+| `chi1v`           | Molecular connectivity index considering valence (first-order)  |
 
 ### Drug-likeness
-| Property | Description |
-|----------|-------------|
-| `qed` | Quantitative Estimation of Drug-likeness (score from 0-1) |
+| Property | Description                                               |
+| -------- | --------------------------------------------------------- |
+| `qed`    | Quantitative Estimation of Drug-likeness (score from 0-1) |
 
 ### Drug-likeness Filters
-| Filter | Description |
-|--------|-------------|
-| `lipinski_pass` | Lipinski's Rule of Five (MW≤500, LogP≤5, HBD≤5, HBA≤10) |
-| `veber_pass` | Veber's Rules (TPSA≤140 Å², RotBonds≤10) |
-| `ghose_pass` | Ghose Filter (160≤MW≤480, -0.4≤LogP≤5.6, 20≤atoms≤70, 40≤MR≤130) |
-| `egan_pass` | Egan Filter (LogP≤5.88, TPSA≤131.6) |
-| `muegge_pass` | Muegge Filter (200≤MW≤600, -2≤LogP≤5, TPSA≤150, rings≤7, HBA≤10, HBD≤5, RotBonds<15) |
-| `pains_free` | PAINS filter (screens for pan-assay interference compounds) |
-| `all_filters_passed` | Compound passes all drug-likeness filters |
+| Filter               | Description                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------ |
+| `lipinski_pass`      | Lipinski's Rule of Five (MW≤500, LogP≤5, HBD≤5, HBA≤10)                              |
+| `veber_pass`         | Veber's Rules (TPSA≤140 Å², RotBonds≤10)                                             |
+| `ghose_pass`         | Ghose Filter (160≤MW≤480, -0.4≤LogP≤5.6, 20≤atoms≤70, 40≤MR≤130)                     |
+| `egan_pass`          | Egan Filter (LogP≤5.88, TPSA≤131.6)                                                  |
+| `muegge_pass`        | Muegge Filter (200≤MW≤600, -2≤LogP≤5, TPSA≤150, rings≤7, HBA≤10, HBD≤5, RotBonds<15) |
+| `pains_free`         | PAINS filter (screens for pan-assay interference compounds)                          |
+| `all_filters_passed` | Compound passes all drug-likeness filters                                            |
 
 ### Fragment Analysis
 ChatMol also calculates numerous fragment-based descriptors that count the occurrences of specific functional groups within a molecule. These include:
